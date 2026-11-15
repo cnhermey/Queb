@@ -1,4 +1,4 @@
-# Queb (v0.9.0)
+# Queb (v0.9.1)
 
 When you log in, the addon helps you find guildmates on the same quests, so you can group up instead of questing alone. Grouped questing is faster.
 
@@ -7,7 +7,7 @@ When you log in, the addon helps you find guildmates on the same quests, so you 
   - **Quebmates:** guildmates ranked by shared quests, then by closest level. Each name has the roles that player picked (Blizzard's tank, healer and damage icons) right after it. Each row has an Invite button, and hovering over a row compares your progress with theirs on each shared quest.
   - **Settings:** every option, as Blizzard checkboxes and sliders. The same window appears in Blizzard's AddOns options, and changes in one show up in the other.
 - **Your role.** Right of the tabs, tick Tank, Healer and/or Damage, like the Dungeon Finder role check. Roles your class can't play are grayed out. Quebmates see your choice next to your name. Group members without Queb show the role assigned in the group, if any. Both sides need Queb 0.9.0 or newer to see each other's picks.
-- **Resizable window.** Drag the grabber in the bottom-right corner. The size and position are remembered.
+- **Resizable window.** Drag the grabber in the bottom-right corner, in both directions; make it short when your list is short. The Settings tab scrolls when the window is shorter than its options. The size and position are remembered.
 - **Class-colored circles right after each quest title** in the quest list and the objective tracker. They only use empty space: the addon measures where the title ends and where the next Blizzard element starts (the checkmark, for example), and never covers icons. Titles that wrap or are cut short get no circles on the row, but hovering over them still shows the circles in the tooltip. Each circle is a guildmate on that quest, and a gold ring means they're ready to turn it in. Hover to see progress.
 - **EllesmereUI Quest Tracker support.** When Ellesmere's own tracker is on (its default style on Forever), the circles appear on each quest row, to the **right** of the title. They go through Ellesmere's official row API, which reserves space there; the left side holds Ellesmere's focus buttons. Up to 3 circles fit, plus "+N". Hovering over an Ellesmere quest shows the same circles in its tooltip. With Ellesmere's "Blizzard" or "Classic" styles, the normal tracker circles appear after the title.
 - **Guild & Communities tooltips.** Hover over a guildmate in the guild member list to see "Queb: N shared quests", up to 6 of those quests with their progress, and a circle in their class color. When shared quests can't be seen, the tooltip shows a short reason: "no Queb, not grouped", "too far away", "offline" or "syncing". Turn it off with Settings → Guild tooltips.

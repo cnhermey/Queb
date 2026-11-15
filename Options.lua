@@ -185,6 +185,7 @@ end
 function O:BuildPage(parent)
   local page = CreateFrame("Frame", nil, parent)
   page.refreshers = {}
+  local lowest = 0
   for col, items in ipairs(LAYOUT) do
     local x, y = 8 + (col - 1) * COL_W, -6
     for _, item in ipairs(items) do
@@ -205,7 +206,12 @@ function O:BuildPage(parent)
       end
       y = y - h
     end
+    lowest = math.min(lowest, y)
   end
+  -- height the content needs (the panel scrolls the page when it's taller
+  -- than the window)
+  page.contentHeight = -lowest + 10
+  page.contentWidth = 8 + #LAYOUT * COL_W
   page:SetScript("OnShow", function(self) O:RefreshPage(self) end)
   self.pages[#self.pages + 1] = page
   return page

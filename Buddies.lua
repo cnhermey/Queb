@@ -103,7 +103,7 @@ end)
 ---------------------------------------------------------------------------
 local UI = ns.UI
 local WIN_W, WIN_H = 520, 480           -- default size
-local MIN_W, MIN_H = 470, 420           -- settings page + tab row still fit
+local MIN_W, MIN_H = 470, 220           -- height: title + tabs + a few rows; Settings scrolls
 local MAX_W, MAX_H = 1000, 900
 
 local function Invite(name)
@@ -360,7 +360,14 @@ local function MakeResizable(f)
   grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
   grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
   grip:SetScript("OnMouseDown", function(_, button)
-    if button == "LeftButton" then f:StartSizing("BOTTOMRIGHT") end
+    if button ~= "LeftButton" then return end
+    -- anchor by the top-left corner first, so only the bottom/right edges move
+    local left, top = f:GetLeft(), f:GetTop()
+    if left and top then -- same units as SetPoint offsets (the window's own scale)
+      f:ClearAllPoints()
+      f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    end
+    f:StartSizing("BOTTOMRIGHT")
   end)
   grip:SetScript("OnMouseUp", function()
     f:StopMovingOrSizing()
@@ -537,10 +544,32 @@ function B:BuildPanel(parent, tabIndent)
   panel.pages.buddies = bp
 
   -- Settings page
-  local sp = ns.Options:BuildPage(panel)
-  sp:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -34)
-  sp:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
-  panel.pages.settings = sp
+  -- Settings page, in a Blizzard scroll frame so the window can be made
+  -- shorter than the settings list.
+  local holder = CreateFrame("Frame", nil, panel)
+  holder:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -34)
+  holder:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
+  local scroll
+  for _, tpl in ipairs({ "ScrollFrameTemplate", "UIPanelScrollFrameTemplate" }) do
+    local ok, sf = pcall(CreateFrame, "ScrollFrame", nil, holder, tpl)
+    if ok and sf then scroll = sf break end
+  end
+  local sp
+  if scroll then
+    scroll:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, 0)
+    scroll:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -22, 0)
+    sp = ns.Options:BuildPage(scroll)
+    sp:SetSize(math.max(sp.contentWidth, 1), sp.contentHeight)
+    scroll:SetScrollChild(sp)
+    scroll:SetScript("OnSizeChanged", function(self, w)
+      if w and w > 0 then sp:SetWidth(math.max(w, sp.contentWidth)) end
+    end)
+    holder:SetScript("OnShow", function() ns.Options:RefreshPage(sp) end)
+  else
+    sp = ns.Options:BuildPage(holder)
+    sp:SetAllPoints(holder)
+  end
+  panel.pages.settings = holder
 
   panel:SetScript("OnShow", function(self) B:UpdatePanel(self) end)
   self.panels[#self.panels + 1] = panel

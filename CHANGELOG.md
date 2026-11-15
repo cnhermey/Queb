@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1 (2026-11-15)
+- Window can be made much shorter (min height 220 instead of 420); the Settings tab scrolls when it doesn't fit.
+- Resizing keeps the window's top edge in place.
+
 ## 0.9.0 (2026-11-15)
 - "Buddies" is now "Quebmates" (tab, chat, settings).
 - Role picker next to the tabs: Tank / Healer / Damage, any combination, limited by class. Shared with other Queb users (HI field 5, "@" part in ST; older builds ignore both).

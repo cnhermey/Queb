@@ -2,7 +2,7 @@
 ## Title: Queb
 ## Notes: Guildmates and group members on your quests, in Blizzard's quest log, tracker and tooltips.
 ## Author: cnhermey
-## Version: 0.12.0
+## Version: 0.12.1
 ## SavedVariables: QuebDB
 ## Category: Quests
 ## IconTexture: Interface\AddOns\Queb\Media\Icon

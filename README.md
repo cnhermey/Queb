@@ -1,4 +1,4 @@
-# Queb (v0.12.0)
+# Queb (v0.12.1)
 
 When you log in, the addon helps you find guildmates on the same quests, so you can group up instead of questing alone. Grouped questing is faster.
 
@@ -30,7 +30,7 @@ When you log in, the addon helps you find guildmates on the same quests, so you 
 ### Looks like Blizzard's UI
 Queb is built to look like part of WoW: Forever's own interface:
 - Queb's icon is a spider web with one circle per class color, painted in the style of WoW's web icons. It fills the round portrait of the Queb window and shows in the AddOns list and the AddOns options page (`Media/Icon.tga`, 128 × 128).
-- The circles use Blizzard's round texture, shaded like the class-colored party dots on the minimap. The gold "ready to turn in" ring is the only custom art; it's tinted Blizzard gold.
+- The circles use Blizzard's round texture: a solid class color with a dark rim, like the party dots on the minimap. The gold "ready to turn in" ring is the only custom art; it's tinted Blizzard gold.
 - The Queb window uses Blizzard's standard window (your portrait, title bar, close button, inset list with a Blizzard scroll bar), class icons and Blizzard buttons. Escape closes it, it plays the normal open/close sounds, and it remembers where you drag it.
 - Tooltips use Blizzard's colors: gold headers, white text, green for done, gray for unknown.
 - Chat messages look like system messages, with a short "Queb:" prefix.

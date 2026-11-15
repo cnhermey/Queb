@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.12.1 (2026-11-15)
+- Circles are solid class color again (dark rim, no highlight). The v0.8.4 removal had been lost in a merge.
+
 ## 0.12.0 (2026-11-15)
 - Circles on Questie's quest tracker, right after each quest title (in the space Questie keeps at its right edge). Questie's tracker tooltip gets the "Also on this quest" lines. Setting: Objective tracker.
 - Blizzard tracker: if a quest block has no `HeaderText` (possible on Forever), Queb now finds the title the way EllesmereUI does (first text region) instead of drawing nothing.

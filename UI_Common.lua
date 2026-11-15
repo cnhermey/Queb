@@ -197,9 +197,10 @@ end
 ---------------------------------------------------------------------------
 local free = {}
 
--- One dot = Blizzard's round mask in three layers, shaded like the class-
+-- One dot = Blizzard's round mask in two layers (+ ring), like the class-
 -- colored party blips on Blizzard's minimap: dark rim, class-colored fill,
--- soft highlight on top. Gold ring (Blizzard gold) = ready to turn in.
+-- no highlight (owner: solid circles; a small gloss read as a flat light
+-- spot at 10 px and washed out the class color). Gold ring = ready to turn in.
 local function CreateDot(g)
   local d = {}
   d.shadow = g:CreateTexture(nil, "ARTWORK", nil, 1)
@@ -212,13 +213,6 @@ local function CreateDot(g)
   d.fill:SetSize(DOT, DOT)
   d.fill:SetPoint("CENTER", d.shadow, "CENTER")
 
-  d.shine = g:CreateTexture(nil, "ARTWORK", nil, 3)
-  d.shine:SetTexture(UI.CIRCLE)
-  d.shine:SetVertexColor(1, 1, 1, 0.3)
-  d.shine:SetBlendMode("ADD")
-  d.shine:SetSize(DOT * 0.45, DOT * 0.45)
-  d.shine:SetPoint("CENTER", d.shadow, "CENTER", -DOT * 0.15, DOT * 0.18)
-
   d.ring = g:CreateTexture(nil, "ARTWORK", nil, 4)
   d.ring:SetTexture(UI.RING)
   d.ring:SetVertexColor(UI.GOLD.r, UI.GOLD.g, UI.GOLD.b, 1)
@@ -230,7 +224,6 @@ end
 local function SetDotShown(d, shown)
   d.shadow:SetShown(shown)
   d.fill:SetShown(shown)
-  d.shine:SetShown(shown)
   if not shown then d.ring:Hide() end
 end
 
@@ -275,7 +268,6 @@ local function Layout(g, sharers)
     g.dots[i] = d
     local c = ClassColor(s.class)
     d.fill:SetVertexColor(c.r, c.g, c.b, s.hasAddon and 1 or 0.45)
-    d.shine:SetAlpha(s.hasAddon and 1 or 0.4)
     d.shadow:ClearAllPoints()
     d.shadow:SetPoint("LEFT", g, "LEFT", x + 1, 0)
     SetDotShown(d, true)

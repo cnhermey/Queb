@@ -121,8 +121,11 @@ function P:SharedWith(name, online)
       end
     end
   else
-    if online == nil then online = self:IsGuildmateOnline(name) end
     local unit = self:FindRosterUnit(name)
+    if online == nil then
+      -- group members may not be guildmates: ask the game, not the guild roster
+      if unit then online = Bool(UnitIsConnected(unit)) else online = self:IsGuildmateOnline(name) end
+    end
     if online == false then
       result.status = "offline"
     elseif peer then

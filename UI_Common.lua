@@ -107,7 +107,7 @@ function UI:CircleIcon(classFile, size)
     math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
 end
 
--- Append "guildmates on this quest" lines to an already-populated tooltip.
+-- Append "also on this quest" lines (guildmates and group members) to an already-populated tooltip.
 -- Returns true if anything was added. Caller is responsible for :Show().
 -- Layout follows Blizzard's tooltips: blank spacer, gold section header,
 -- then name / progress double lines.
@@ -134,7 +134,7 @@ function UI:AddSharersToTooltip(tooltip, questID)
   if #sharers == 0 and not hasTargets then return false end
   tooltip:AddLine(" ")
   if #sharers > 0 then
-    tooltip:AddLine("Guildmates on this quest", UI.GOLD.r, UI.GOLD.g, UI.GOLD.b)
+    tooltip:AddLine("Also on this quest", UI.GOLD.r, UI.GOLD.g, UI.GOLD.b)
     for i = 1, math.min(#sharers, TOOLTIP_MAX) do
       local s = sharers[i]
       local prog = s.hasAddon and self:ProgressText(s.complete, s.objectives) or Wrap(UI.GRAY, NO_QUEB_ON_QUEST)
@@ -171,7 +171,7 @@ function UI:ShowSharersTooltip(owner, questID)
   local sharers = ns.Peers:GetSharers(questID)
   GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
   GameTooltip:SetText(ns.QuestState:GetTitle(questID) or ("Quest " .. questID), UI.GOLD.r, UI.GOLD.g, UI.GOLD.b)
-  GameTooltip:AddLine("Guildmates on this quest", UI.WHITE.r, UI.WHITE.g, UI.WHITE.b)
+  GameTooltip:AddLine("Also on this quest", UI.WHITE.r, UI.WHITE.g, UI.WHITE.b)
   local mine = ns.QuestState.quests[questID]
   if mine then
     local _, myClassFile = UnitClass("player")
@@ -185,7 +185,7 @@ function UI:ShowSharersTooltip(owner, questID)
     local prog = s.hasAddon and self:ProgressText(s.complete, s.objectives) or Wrap(UI.GRAY, NO_QUEB_ON_QUEST)
     GameTooltip:AddDoubleLine(label, prog)
   end
-  if #sharers == 0 then GameTooltip:AddLine("No guildmates yet", UI.GRAY.r, UI.GRAY.g, UI.GRAY.b) end
+  if #sharers == 0 then GameTooltip:AddLine("Nobody yet", UI.GRAY.r, UI.GRAY.g, UI.GRAY.b) end
   self:AddShareTargetsLine(GameTooltip, questID)
   -- Blizzard-style click hint: green, in angle brackets
   GameTooltip:AddLine("<Click: Quebmates>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)

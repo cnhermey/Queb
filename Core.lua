@@ -45,14 +45,16 @@ end
 -- Saved settings
 ---------------------------------------------------------------------------
 ns.DEFAULTS = {
-  shareGuild = true,         -- main audience: guildmates who run the addon
-  shareParty = false,        -- optional extra: party/raid members who run the addon
+  shareGuild = true,         -- guildmates who run the addon
+  shareParty = true,         -- party/raid members who run the addon, guild or not (on by default since 0.10.0)
   showNonAddonParty = true,  -- group members without the addon (C_QuestLog.IsUnitOnQuest; no progress numbers)
   showInQuestLog = true,     -- class-colored dots left of quest titles in the quest list
   showInTracker = true,      -- same dots in the objective tracker
   showInTooltips = true,     -- circles + progress in quest tooltips (world map areas/markers, quest log, tracker)
   showInGuild = true,        -- "N shared quests" when hovering guildmates in Guild & Communities
   showOnMap = true,          -- shared quests on OpenMap's player markers (dots, zone badges, group dots)
+  showOnPlayers = true,      -- shared quests when hovering a player (unit frames, world, nameplates)
+  showOnQuestUnits = true,   -- who else is on the quest when hovering a quest mob/NPC
   maxDots = 5,              -- more sharers than this collapse into "+N"
   loginSummary = true,       -- after login, list guildmates you share the most quests with
   shareQuests = true,        -- "can share": send which quests you can share; show what guildmates can share with you
@@ -73,7 +75,10 @@ ns.On("ADDON_LOADED", function(_, name)
   if (db.schema or 1) < 2 then
     db.showNonAddonParty = true -- now on by default (works without the addon on their side)
   end
-  db.schema = 2
+  if (db.schema or 1) < 3 then
+    db.shareParty = true -- party sync now on by default: works with anyone in your group, guild or not
+  end
+  db.schema = 3
   ns.db = db
   ns.Fire("INIT")
 end)

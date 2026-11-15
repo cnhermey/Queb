@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0 (2026-11-15)
+- Party and raid members who aren't in your guild: party sync is now on by default (existing installs switched on once), so any Queb user in your group gets circles, progress, "Can share" and a Quebmates row.
+- Player tooltips: hover a group member (unit frames, raid frames, nameplates, world) or a known Queb user to see shared quests. Setting: Player tooltips.
+- Quest mob tooltips: hovering a mob/NPC tied to your quest names who else is on it. Setting: Quest mob tooltips.
+- Quest tooltips say "Also on this quest" (was "Guildmates on this quest").
+- Fix: a non-guild group member without Queb could read "offline" in tooltips.
+
 ## 0.9.2 (2026-11-15)
 - Role picker shows only the roles your class can play (no grayed-out checkboxes).
 

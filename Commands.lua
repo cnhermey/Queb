@@ -66,6 +66,7 @@ local function Probe()
     .. ", IsQuestFlaggedCompleted " .. tostring(C_QuestLog.IsQuestFlaggedCompleted ~= nil))
   P("  OpenMap API: " .. (type(OpenMapAPI) == "table" and ("v" .. tostring(OpenMapAPI.major) .. "." .. tostring(OpenMapAPI.version)) or "missing")
     .. ", menu toggle: " .. tostring(ns.OpenMapUI and ns.OpenMapUI.menuRegistered == true))
+  P("  Unit tooltips: " .. tostring(ns.UnitUI and ns.UnitUI.hook) .. ", party sync " .. tostring(ns.db.shareParty))
   P("  Hooks installed: " .. (#ns.Tracker.hooks > 0 and table.concat(ns.Tracker.hooks, ", ") or "none"))
   local B = ns.Buddies
   B:Create() -- builds the window (hidden) so we can report what it used

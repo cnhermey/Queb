@@ -1,4 +1,4 @@
-# Queb (v0.9.2)
+# Queb (v0.10.0)
 
 When you log in, the addon helps you find guildmates on the same quests, so you can group up instead of questing alone. Grouped questing is faster.
 
@@ -12,6 +12,9 @@ When you log in, the addon helps you find guildmates on the same quests, so you 
 - **EllesmereUI Quest Tracker support.** When Ellesmere's own tracker is on (its default style on Forever), the circles appear on each quest row, to the **right** of the title. They go through Ellesmere's official row API, which reserves space there; the left side holds Ellesmere's focus buttons. Up to 3 circles fit, plus "+N". Hovering over an Ellesmere quest shows the same circles in its tooltip. With Ellesmere's "Blizzard" or "Classic" styles, the normal tracker circles appear after the title.
 - **Guild & Communities tooltips.** Hover over a guildmate in the guild member list to see "Queb: N shared quests", up to 6 of those quests with their progress, and a circle in their class color. When shared quests can't be seen, the tooltip shows a short reason: "no Queb, not grouped", "too far away", "offline" or "syncing". Turn it off with Settings → Guild tooltips.
 - **OpenMap player markers.** With OpenMap installed, hovering a player on its map shows the same Queb lines as the guild tooltip: guildmates' dots (when they share their position in OpenMap), party and raid dots, and zone badges (only the people you share quests with, most first). Turn it off with Settings → OpenMap players, or from OpenMap's own menu ("Queb: shared quests").
+- **Party and raid members, guild or not.** Anyone in your group who runs Queb gets circles, progress and "Can share" just like a guildmate, and shows up in the Quebmates tab. Group members without Queb still get faded circles. Party sync is on by default since 0.10.0 (Settings → Party and raid).
+- **Player tooltips.** Hover a party member's frame, a raid frame, a nameplate or a player in the world: Queb adds "N shared quests" with progress, or the short reason when it can't tell. Only for people in your group or known Queb users, so strangers in town get nothing. Settings → Player tooltips.
+- **Quest mob tooltips.** Hover a mob or NPC that Blizzard marks with one of your quests: one line names the guildmates and group members also on that quest, with their class circles. Settings → Quest mob tooltips.
 - **Circles in quest tooltips.** Hover over a quest area or quest marker on the world map, a quest in the map's quest list, or a quest in the tracker. Blizzard's tooltip then gains a row of class-colored circles plus each guildmate's progress. Turn it off with Settings → Quest tooltips.
 
 - **Can share (yellow "!").** Queb shows quests a guildmate could share with you: quests they have and you don't, that you haven't done, and that are near your level. You'll see them in the Quebmates tab (a "!" with a count on their row; hover for the list), in the login summary ("can share 2") and in guild, OpenMap and zone tooltips. The reverse works too: hovering one of your quests shows "Can share with:" and the guildmates who could take it from you. The "!" is Blizzard's available-quest icon, never a class color, so it can't be confused with a guildmate circle. The game only lets players share a quest while grouped and nearby, so invite first. Queb can't check quest chains or class/race limits, so once in a while the game may still refuse a share. Both sides need Queb 0.8.3 or newer. Turn it off with Settings → Can share.
@@ -53,7 +56,7 @@ Queb is built to look like part of WoW: Forever's own interface:
 - `/queb` opens or closes the Queb window. Everything else is in its Settings tab.
 - `/queb probe` is a developer report for testing (frames, hooks, assets, sync stats, known users).
 
-Default settings: guild sync on, party sync off, faded circles for grouped players without the addon on, circles in both the quest list and the tracker, and at most 5 circles before the rest collapse into "+N".
+Default settings: guild sync on, party sync on, faded circles for grouped players without the addon on, circles in both the quest list and the tracker, and at most 5 circles before the rest collapse into "+N".
 
 ## How it works
 | File | Role |
@@ -70,6 +73,7 @@ Default settings: guild sync on, party sync off, faded circles for grouped playe
 | `UI_Tooltip.lua` | Post-hooks `GameTooltip:Show` and adds circles and progress lines when the tooltip belongs to the world map, quest log or tracker |
 | `UI_Ellesmere.lua` | EllesmereUI Quest Tracker support: registers through `EllesmereUI.RegisterQuestTrackerRow` and refreshes with `EllesmereUI.RefreshQuestTrackerRows` |
 | `UI_Guild.lua` | Guild member tooltips: Modern `CommunitiesFrame` member list (load-on-demand, ScrollBox rows) and Classic `GuildFrame` rows |
+| `UI_Unit.lua` | Unit tooltips (`TooltipDataProcessor` post-call): shared quests on players you're grouped with or know through Queb; who else is on the quest on quest mobs/NPCs |
 | `Options.lua` | Settings tab: Blizzard checkboxes, sliders and buttons for every option, through one setter (`ns.Options:Set`) |
 | `Roles.lua` | Your roles (`QuebDB.roles`), class limits, role encoding for messages, Blizzard role icons, the role picker |
 | `Buddies.lua` | Login summary; the Queb panel (Quebmates + Settings tabs, role picker) built in the resizable `/queb` window and in Esc → Options → AddOns; Invite (`C_PartyInfo.InviteUnit`) |
@@ -92,3 +96,4 @@ Taint safety: the addon only uses post-hooks (`hooksecurefunc` and `HookScript`)
 - Map tooltips: with Settings → **Debug messages** on, the first time you hover over each map area or marker, chat prints which quest it detected. If an area shows no circles, paste that line here.
 - The format of sender names in addon messages (Debug messages prints the first one received).
 - Whether guild addon messages work on Forever, and what happens to them inside instances.
+- Unit tooltips: `/queb probe` "Unit tooltips:" line shows which hook was used. Hover a party frame and a quest mob in a group to check the lines.

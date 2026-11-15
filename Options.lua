@@ -49,6 +49,8 @@ local LAYOUT = {
     { kind = "check", key = "showInTooltips", label = "Quest tooltips" },
     { kind = "check", key = "showInGuild",    label = "Guild tooltips" },
     { kind = "check", key = "showOnMap",      label = "OpenMap players" },
+    { kind = "check", key = "showOnPlayers",  label = "Player tooltips" },
+    { kind = "check", key = "showOnQuestUnits", label = "Quest mob tooltips" },
     { kind = "slider", key = "maxDots", label = "Max circles", min = 1, max = 10 },
     { header = "Testing" },
     { kind = "demo", label = "Demo guildmates" },

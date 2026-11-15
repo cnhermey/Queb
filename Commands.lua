@@ -70,6 +70,13 @@ local function Probe()
     .. shareN .. ", you could take " .. wantN .. ", IsPushableQuest " .. tostring(C_QuestLog.IsPushableQuest ~= nil)
     .. ", IsQuestFlaggedCompleted " .. tostring(C_QuestLog.IsQuestFlaggedCompleted ~= nil))
   do
+    local S = ns.Peers.prereq
+    P("  Prereqs: " .. (ns.Peers:PrereqSource() or "unknown, no Questie") .. ", checked " .. S.checked
+      .. " (ok " .. S.yes .. ", no " .. S.no .. ", unknown " .. S.unknown .. "), refused " .. ns.Peers:RefusedCount()
+      .. ", share hook " .. tostring(ns.Comm.pushHooks.global == true or ns.Comm.pushHooks.ns == true)
+      .. ", refusal texts " .. #ns.Comm.RefusalPatterns())
+  end
+  do
     local ch, why = ns.Announce:Channel()
     P("  Announce: " .. tostring(ns.db.announceTurnIns) .. ", Questie loaded " .. tostring(ns.Announce:QuestieLoaded())
       .. ", now " .. (ch or why))

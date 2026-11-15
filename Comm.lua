@@ -8,10 +8,13 @@
 --   ST  stateHash;CLASS;@ROLES;entry;entry;...          full quest state
 --   QU  stateHash;entry;entry;...                       changed quests ("qid,-" = removed)
 --   WT  qid,qid,...  or  -                              quests I could take from a guildmate
+--   NO  qid;name                                        the game refused my share of qid to name (v0.13.0)
 -- Entry format: see ns.EncodeEntry (Util.lua).
 -- ST/QU may also carry "can share" parts (!qid:level:title, ns.EncodeShare)
 -- for quests the sender can share. Older builds skip those parts and ignore
 -- WT, so this needs no protocol bump. Neither is part of the state hash.
+-- Older builds ignore NO. Since v0.13.0 WT only lists quests whose
+-- prerequisites Questie's database confirms (see Peers:CanTake).
 -- ROLES (v0.9.0): "T", "H", "D" in that order, or "-" (ns.Roles:Encode).
 -- Older builds read only HI fields 1-4 and skip the "@" part in ST.
 --
@@ -427,11 +430,117 @@ C.handlers.WT = function(self, body, channel, sender, src)
   ns.Peers:Changed()
 end
 
+-- Someone tried to share a quest with us and the game refused: don't show
+-- "can share" for it again (until we level up). Only the named player acts.
+C.handlers.NO = function(self, body, channel, sender, src)
+  local qid, name = string.match(body, "^(%d+);(.+)$")
+  qid = tonumber(qid)
+  if not qid or qid <= 0 or qid > 10000000 or not name then return end
+  if not ns.IsMe(name) then return end
+  ns.Peers:SetRefused(qid)
+end
+
+---------------------------------------------------------------------------
+-- Failed shares (v0.13.0). When you share a quest, the game answers in a
+-- system message ("X is not eligible for that quest", …). If X uses Queb,
+-- tell them (NO) so their "!" goes away, and drop them from "Can share with".
+-- Only refusals that won't fix themselves count; "declined", "too far",
+-- "quest log full", "busy" etc. are ignored.
+---------------------------------------------------------------------------
+local REFUSAL_GLOBALS = {
+  "ERR_QUEST_PUSH_INVALID_S", "ERR_QUEST_PUSH_INVALID_TO_RECIPIENT_S", "ERR_QUEST_PUSH_ALREADY_DONE_S",
+  "ERR_QUEST_PUSH_ALREADY_DONE_TO_RECIPIENT_S", "ERR_QUEST_PUSH_NOT_ALLOWED_S", "ERR_QUEST_PUSH_LOW_LEVEL_S",
+  "ERR_QUEST_PUSH_HIGH_LEVEL_S", "ERR_QUEST_PUSH_CLASS_S", "ERR_QUEST_PUSH_RACE_S",
+  "ERR_QUEST_PUSH_EXPANSION_S", "ERR_QUEST_PUSH_NEW_PLAYER_EXPERIENCE_S", "ERR_QUEST_PUSH_CROSS_FACTION_RESTRICTED_S",
+}
+local refusalPatterns
+local function RefusalPatterns()
+  if refusalPatterns then return refusalPatterns end
+  refusalPatterns = {}
+  for _, g in ipairs(REFUSAL_GLOBALS) do
+    local fmt = _G[g]
+    if type(fmt) == "string" and string.find(fmt, "%s", 1, true) then
+      local pat = string.gsub(fmt, "[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0")
+      pat = string.gsub(pat, "%%%%s", "(.+)", 1)
+      pat = string.gsub(pat, "%%%%s", ".+")
+      refusalPatterns[#refusalPatterns + 1] = "^" .. pat .. "$"
+    end
+  end
+  return refusalPatterns
+end
+C.RefusalPatterns = RefusalPatterns
+
+local PUSH_WINDOW = 10 -- seconds a share attempt stays "the last one"
+local lastPush -- { qid, t }
+
+local function SelectedQuestID(arg)
+  if type(arg) == "number" and arg > 0 and not ns.IsSecret(arg) then
+    if arg > 100 then return arg end -- a questID
+    local ok, info = pcall(C_QuestLog.GetInfo, arg) -- a quest log index
+    if ok and type(info) == "table" and info.questID then return info.questID end
+  end
+  if C_QuestLog.GetSelectedQuest then
+    local ok, qid = pcall(C_QuestLog.GetSelectedQuest)
+    if ok and type(qid) == "number" and qid > 0 and not ns.IsSecret(qid) then return qid end
+  end
+  if GetQuestLogSelection then
+    local ok, idx = pcall(GetQuestLogSelection)
+    if ok and type(idx) == "number" and idx > 0 then return SelectedQuestID(idx) end
+  end
+end
+
+local function NotePush(arg)
+  local qid = SelectedQuestID(arg)
+  if qid then lastPush = { qid = qid, t = GetTime() } end
+end
+
+C.pushHooks = {}
+local function HookPush()
+  if type(QuestLogPushQuest) == "function" and not C.pushHooks.global then
+    hooksecurefunc("QuestLogPushQuest", NotePush)
+    C.pushHooks.global = true
+  end
+  if type(C_QuestLog.PushQuest) == "function" and not C.pushHooks.ns then
+    hooksecurefunc(C_QuestLog, "PushQuest", NotePush)
+    C.pushHooks.ns = true
+  end
+end
+
+function C:OnRefusal(name)
+  if not lastPush or GetTime() - lastPush.t > PUSH_WINDOW then return end
+  local qid = lastPush.qid
+  local peer = ns.Peers:FindPeer(name)
+  if peer then ns.Peers:MarkNoTake(peer, qid) end
+  ns.Debug("share of", qid, "refused for", name)
+  -- sharing needs a group, so the group channel reaches them; else guild
+  local ch = ns.GetGroupChannel()
+  if not (ch and self:IsActive(ch)) then
+    ch = (peer and peer.sources.GUILD and self:IsActive("GUILD")) and "GUILD" or nil
+  end
+  if ch then self:Send("NO", qid .. ";" .. name, ch) end
+end
+
+ns.On("CHAT_MSG_SYSTEM", function(_, text)
+  if not lastPush or type(text) ~= "string" or ns.IsSecret(text) then return end
+  for _, pat in ipairs(RefusalPatterns()) do
+    local name = string.match(text, pat)
+    name = ns.NormalizeName(name)
+    if name then
+      name = string.gsub(name, "|c%x%x%x%x%x%x%x%x", "")
+      name = string.gsub(name, "|r", "")
+      name = ns.NormalizeName((string.gsub(name, "|H.-|h%[?(.-)%]?|h", "%1")))
+      if name then return C:OnRefusal(name) end
+      return
+    end
+  end
+end)
+
 ---------------------------------------------------------------------------
 -- Wiring
 ---------------------------------------------------------------------------
 ns.Listen("INIT", function()
   C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
+  HookPush()
 end)
 
 ns.On("CHAT_MSG_ADDON", function(_, prefix, text, channel, sender)

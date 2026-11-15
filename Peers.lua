@@ -173,10 +173,125 @@ end
 
 local TOO_HIGH = 4 -- quests more than this many levels above you are left out
 
--- Could you take this quest from a guildmate? Never guesses "yes" on data it
--- has: in your log, already done, gray or far above you = no. (Prerequisite
--- quests and class/race limits aren't knowable without a quest database.)
-function P:CanTake(questID, level)
+---------------------------------------------------------------------------
+-- Prerequisites (v0.13.0). The game has no API for "could this player take
+-- quest X": quest chains, class/race limits, breadcrumbs, reputation. Only a
+-- quest database knows, so Queb asks Questie's (QuestieDB.IsDoable, read via
+-- QuestieLoader's module table, never ImportModule). Without Questie, or for
+-- a quest Questie doesn't know, the answer is "unknown" and Queb shows no
+-- "can share" for it (never guess).
+---------------------------------------------------------------------------
+P.prereq = { checked = 0, yes = 0, no = 0, unknown = 0 }
+local prereqCache = {} -- [questID] = true | false | "?"
+
+local function QuestieDBModule()
+  local Q = _G.Questie
+  if type(Q) ~= "table" or type(Q.API) ~= "table" or Q.API.isReady ~= true then return nil end
+  local L = _G.QuestieLoader
+  local mods = type(L) == "table" and rawget(L, "_modules")
+  local db = type(mods) == "table" and mods.QuestieDB
+  if type(db) == "table" and type(db.IsDoable) == "function" and type(db.QueryQuestSingle) == "function" then
+    return db
+  end
+end
+
+-- "Questie" when prerequisites can be checked, else nil.
+function P:PrereqSource()
+  return QuestieDBModule() and "Questie" or nil
+end
+
+local function QuestieHidden(questID)
+  local Q = _G.Questie
+  local char = type(Q) == "table" and type(Q.db) == "table" and Q.db.char
+  local hidden = type(char) == "table" and char.hidden
+  return type(hidden) == "table" and hidden[questID] and true or false
+end
+
+-- true = you meet the prerequisites, false = you don't, nil = unknown.
+function P:PrereqsMet(questID)
+  local cached = prereqCache[questID]
+  if cached ~= nil then
+    if cached == "?" then return nil end
+    return cached
+  end
+  local result
+  local db = QuestieDBModule()
+  if db then
+    local ok, name = pcall(db.QueryQuestSingle, questID, "name")
+    -- unknown to Questie, or hidden by hand in Questie (IsDoable says no then)
+    if ok and name ~= nil and not QuestieHidden(questID) then
+      local ok2, doable = pcall(db.IsDoable, questID)
+      if ok2 then result = doable and true or false end
+    end
+  end
+  local S = self.prereq
+  S.checked = S.checked + 1
+  if result == true then S.yes = S.yes + 1 elseif result == false then S.no = S.no + 1 else S.unknown = S.unknown + 1 end
+  -- only cache once Questie is ready, so "unknown" during login isn't kept
+  if db then prereqCache[questID] = (result == nil) and "?" or result end
+  return result
+end
+
+function P:ClearPrereqCache()
+  wipe(prereqCache)
+end
+
+---------------------------------------------------------------------------
+-- Refused shares (v0.13.0): a guildmate tried to share a quest and the game
+-- said you can't take it (they tell us with NO). Remembered per character
+-- until you level up, so the same "!" doesn't come back.
+---------------------------------------------------------------------------
+local function RefusedTable()
+  if not ns.db then return nil end
+  ns.db.refused = type(ns.db.refused) == "table" and ns.db.refused or {}
+  local me = ns.UnitKey("player")
+  if not me then return nil end
+  ns.db.refused[me] = type(ns.db.refused[me]) == "table" and ns.db.refused[me] or {}
+  return ns.db.refused[me]
+end
+
+function P:IsRefused(questID)
+  local t = RefusedTable()
+  local lvl = t and t[questID]
+  if not lvl then return false end
+  local me = MyLevel()
+  if me and me > lvl then t[questID] = nil return false end
+  return true
+end
+
+function P:SetRefused(questID)
+  local t = RefusedTable()
+  if not t or t[questID] then return end
+  t[questID] = MyLevel() or 0
+  ns.Debug("share refused for quest", questID)
+  self:Changed()
+end
+
+function P:RefusedCount()
+  local t, n = RefusedTable(), 0
+  if t then for qid in pairs(t) do if self:IsRefused(qid) then n = n + 1 end end end
+  return n
+end
+
+-- "0.13.0" >= "0.12.2"? Unknown or "dev" versions count as new enough.
+local function VersionAtLeast(v, want)
+  if type(v) ~= "string" or not string.match(v, "^%d") then return v == "dev" end
+  local a, b = {}, {}
+  for n in string.gmatch(v, "%d+") do a[#a + 1] = tonumber(n) end
+  for n in string.gmatch(want, "%d+") do b[#b + 1] = tonumber(n) end
+  for i = 1, math.max(#a, #b) do
+    local x, y = a[i] or 0, b[i] or 0
+    if x ~= y then return x > y end
+  end
+  return true
+end
+P.VersionAtLeast = VersionAtLeast
+local PREREQ_VERSION = "0.13.0" -- first build whose WT checks prerequisites
+
+-- Could you take this quest from a guildmate? Never guesses "yes": in your
+-- log, already done, gray, far above you, refused before, or prerequisites
+-- not confirmed (Questie's database) = no. `skipPrereq` is for demo data.
+function P:CanTake(questID, level, skipPrereq)
   if ns.QuestState.quests[questID] then return false end
   if C_QuestLog.IsQuestFlaggedCompleted then
     local ok, done = pcall(C_QuestLog.IsQuestFlaggedCompleted, questID)
@@ -187,7 +302,9 @@ function P:CanTake(questID, level)
     if level > me + TOO_HIGH then return false end
     if me - level > TrivialRange() then return false end
   end
-  return true
+  if self:IsRefused(questID) then return false end
+  if skipPrereq then return true end
+  return self:PrereqsMet(questID) == true
 end
 
 -- Quests `peer` can share with you: { {questID, level, title}, ... } by level.
@@ -195,7 +312,7 @@ function P:ShareableFrom(peer)
   local out = {}
   if not (ns.db and ns.db.shareQuests) or not peer or not peer.push then return out end
   for qid, sh in pairs(peer.push) do
-    if self:CanTake(qid, sh.lvl) then
+    if self:CanTake(qid, sh.lvl, peer.demo) then
       out[#out + 1] = { questID = qid, level = sh.lvl, title = sh.title }
     end
   end
@@ -206,21 +323,51 @@ function P:ShareableFrom(peer)
   return out
 end
 
+-- The game refused our share of `questID` to `peer` (seen on our side).
+local NO_TAKE_TTL = 600
+function P:MarkNoTake(peer, questID)
+  peer.noTake = peer.noTake or {}
+  peer.noTake[questID] = GetTime()
+  self:Changed()
+end
+
+local function NoTake(peer, questID)
+  local t = peer.noTake and peer.noTake[questID]
+  return t and (GetTime() - t) < NO_TAKE_TTL
+end
+
 -- Guildmates who could take your quest `questID` from you (they told us via
--- WT, so they did the eligibility check on their side).
+-- WT, so they did the eligibility check on their side). Builds before 0.13.0
+-- didn't check prerequisites, so their WT isn't trusted.
 function P:ShareTargets(questID)
   local out = {}
   if not (ns.db and ns.db.shareQuests) then return out end
   local mine = ns.QuestState.quests[questID]
   if not mine then return out end
   for name, peer in pairs(self.list) do
-    if peer.wants and peer.wants[questID] and not peer.quests[questID] and (mine.push or peer.demo) then
+    if peer.wants and peer.wants[questID] and not peer.quests[questID] and (mine.push or peer.demo)
+      and (peer.demo or VersionAtLeast(peer.ver, PREREQ_VERSION)) and not NoTake(peer, questID) then
       out[#out + 1] = { name = name, class = self:GetClass(peer) }
     end
   end
   table.sort(out, function(a, b) return a.name < b.name end)
   return out
 end
+
+-- Prerequisites change when you turn in quests or level up; Questie updates
+-- its completed list a moment after turn-in.
+ns.Listen("LOCAL_QUESTS_CHANGED", function() wipe(prereqCache) end)
+ns.On("QUEST_TURNED_IN", function()
+  C_Timer.After(3, function() wipe(prereqCache) P:Changed() end)
+end)
+ns.On("PLAYER_LEVEL_UP", function() wipe(prereqCache) end)
+ns.Listen("LOGIN", function()
+  local Q = _G.Questie
+  local reg = type(Q) == "table" and type(Q.API) == "table" and Q.API.RegisterOnReady
+  if type(reg) == "function" then
+    pcall(reg, function() wipe(prereqCache) P:Changed() end)
+  end
+end)
 
 -- Every quest you could take from some guildmate (sent as WT). Sorted.
 function P:ComputeWants()

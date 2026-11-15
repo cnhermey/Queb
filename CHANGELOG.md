@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.0 (2026-11-15)
+- "Can share" now checks quest prerequisites (earlier quests in the chain, class, race, reputation, breadcrumbs) with Questie's quest database. No Questie, or a quest Questie doesn't know: no "!" (Queb never guesses).
+- When the game refuses a share ("not eligible", "already done", …), the sharer's Queb tells the other player's Queb, and the "!" for that quest stays hidden for them until they level up. The sharer stops seeing them in "Can share with:".
+- "Can share with:" only lists players on Queb 0.13.0 or newer (older builds didn't check prerequisites).
+- `/queb probe` adds a "Prereqs:" line (Questie found, checks, refusals, share hook).
+
 ## 0.12.2 (2026-11-15)
 - `/q` works the same as `/queb`. `/queb probe` reports if another addon also uses `/q`.
 

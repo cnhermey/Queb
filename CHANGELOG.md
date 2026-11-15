@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.12.2 (2026-11-15)
+- `/q` works the same as `/queb`. `/queb probe` reports if another addon also uses `/q`.
+
 ## 0.12.1 (2026-11-15)
 - Circles are solid class color again (dark rim, no highlight). The v0.8.4 removal had been lost in a merge.
 

@@ -1,9 +1,9 @@
-# Queb (v0.12.1)
+# Queb (v0.12.2)
 
 When you log in, the addon helps you find guildmates on the same quests, so you can group up instead of questing alone. Grouped questing is faster.
 
 - **Login summary.** About 20 seconds after you log in, chat lists the guildmates you share the most quests with, plus their level and zone. Click a name to whisper that player, or right-click it to invite them.
-- **The Queb window** (type `/queb`, click any circle, or go to Esc → Options → AddOns → Queb). It has two tabs:
+- **The Queb window** (type `/queb` or `/q`, click any circle, or go to Esc → Options → AddOns → Queb). It has two tabs:
   - **Quebmates:** guildmates ranked by shared quests, then by closest level. Each name has the roles that player picked (Blizzard's tank, healer and damage icons) right after it. Each row has an Invite button, and hovering over a row compares your progress with theirs on each shared quest.
   - **Settings:** every option, as Blizzard checkboxes and sliders. The same window appears in Blizzard's AddOns options, and changes in one show up in the other.
 - **Your role.** Right of the tabs, tick Tank, Healer and/or Damage, like the Dungeon Finder role check. Only the roles your class can play are shown (a Mage just sees Damage). Quebmates see your choice next to your name. Group members without Queb show the role assigned in the group, if any. Both sides need Queb 0.9.0 or newer to see each other's picks.
@@ -55,7 +55,7 @@ Queb is built to look like part of WoW: Forever's own interface:
 - `/queb probe` lists who the addon has heard from. Settings → **Resync** forces a re-announce.
 
 ## Commands
-- `/queb` opens or closes the Queb window. Everything else is in its Settings tab.
+- `/queb` or the short `/q` opens or closes the Queb window. Everything else is in its Settings tab. (If another addon also uses `/q`, `/queb probe` says so; `/queb` always works.)
 - `/queb probe` is a developer report for testing (frames, hooks, assets, sync stats, known users).
 
 Default settings: guild sync on, party sync on, faded circles for grouped players without the addon on, circles in both the quest list and the tracker, and at most 5 circles before the rest collapse into "+N".
@@ -67,7 +67,7 @@ Default settings: guild sync on, party sync on, faded circles for grouped player
 | `Core.lua` | Event frame, internal message bus, SavedVariables (`QuebDB`) |
 | `QuestState.lua` | Snapshot of your quest log (questID → completion + objective counts) with a state hash |
 | `Peers.lua` | Known addon users, guild roster (class + online), `GetSharers(questID)`, demo mode |
-| `Commands.lua` | `/queb` and the hidden `/queb probe` report |
+| `Commands.lua` | `/queb` and `/q`, and the hidden `/queb probe` report |
 | `Comm.lua` | Versioned, chunked, throttled addon messages on the `GUILD` channel (and optionally party). Resyncs after sending is blocked |
 | `UI_Common.lua` | Class-colored dot widget, tooltip, coalesced refresh |
 | `UI_QuestLog.lua` | Dots in the quest list (Modern `QuestMapFrame`, Classic `QuestLogFrame`) |

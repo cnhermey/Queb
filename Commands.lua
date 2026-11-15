@@ -92,14 +92,31 @@ local function Probe()
   P("  Your name forms: " .. table.concat(me, " "))
 end
 
--- Interface-driven: /queb opens the Queb window (Quebmates + Settings tabs).
--- The only other command is a hidden developer report, /queb probe.
+-- Interface-driven: /queb (or the short /q) opens the Queb window
+-- (Quebmates + Settings tabs). The only other command is a hidden developer
+-- report, /queb probe (also /q probe).
 SLASH_QUEB1 = "/queb"
+SLASH_QUEB2 = "/q"
+
+-- Another addon could also claim /q; whichever registers last may win.
+-- Reported by /queb probe so a clash is easy to spot.
+local function OtherSlashOwners(cmd)
+  local found = {}
+  for k, v in pairs(_G) do
+    if type(k) == "string" and type(v) == "string" and string.sub(k, 1, 6) == "SLASH_"
+       and string.lower(v) == cmd and not string.match(k, "^SLASH_QUEB%d+$") then
+      found[#found + 1] = k
+    end
+  end
+  return found
+end
 SlashCmdList.QUEB = function(msg)
   if not ns.db then return end
   local cmd = string.match(string.lower(msg or ""), "^%s*(%S*)")
   if cmd == "probe" then
     Probe()
+    local others = OtherSlashOwners("/q")
+    P("  /q: " .. (#others == 0 and "Queb only" or ("also " .. table.concat(others, ", "))))
     Stats()
     P("  Queb users:")
     return Peers()

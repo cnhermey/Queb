@@ -64,6 +64,11 @@ local function Probe()
   P("  Can share: icon " .. ns.UI:ShareIcon(12) .. " (" .. tostring(ns.UI.shareSource) .. "), yours "
     .. shareN .. ", you could take " .. wantN .. ", IsPushableQuest " .. tostring(C_QuestLog.IsPushableQuest ~= nil)
     .. ", IsQuestFlaggedCompleted " .. tostring(C_QuestLog.IsQuestFlaggedCompleted ~= nil))
+  do
+    local ch, why = ns.Announce:Channel()
+    P("  Announce: " .. tostring(ns.db.announceTurnIns) .. ", Questie loaded " .. tostring(ns.Announce:QuestieLoaded())
+      .. ", now " .. (ch or why))
+  end
   P("  OpenMap API: " .. (type(OpenMapAPI) == "table" and ("v" .. tostring(OpenMapAPI.major) .. "." .. tostring(OpenMapAPI.version)) or "missing")
     .. ", menu toggle: " .. tostring(ns.OpenMapUI and ns.OpenMapUI.menuRegistered == true))
   P("  Unit tooltips: " .. tostring(ns.UnitUI and ns.UnitUI.hook) .. ", party sync " .. tostring(ns.db.shareParty))

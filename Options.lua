@@ -65,6 +65,10 @@ local LAYOUT = {
     { kind = "check", key = "shareGuild",        label = "Guild" },
     { kind = "check", key = "shareParty",        label = "Party and raid" },
     { kind = "check", key = "showNonAddonParty", label = "Group members without Queb" },
+    -- Questie loaded = Questie announces; the box is grayed out then
+    { kind = "check", key = "announceTurnIns", label = "Announce in party",
+      disabledLabel = "Announce in party (Questie)",
+      disabled = function() return ns.Announce and ns.Announce:QuestieLoaded() end },
     { header = "Quebmates" },
     { kind = "check", key = "loginSummary", label = "Summary at login" },
     { kind = "check", key = "showNearby",   label = "Near your level" },
@@ -101,6 +105,13 @@ local function MakeCheck(page, parent, item)
       cb:SetChecked(ns.demoOn and true or false)
     else
       cb:SetChecked(ns.db[item.key] and true or false)
+    end
+    if item.disabled then
+      local off = item.disabled() and true or false
+      cb:SetEnabled(not off)
+      local label = CheckLabel(cb)
+      label:SetText(off and item.disabledLabel or item.label)
+      label:SetFontObject(off and "GameFontDisable" or "GameFontHighlight")
     end
   end
   return cb, CHECK_H

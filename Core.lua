@@ -57,6 +57,7 @@ ns.DEFAULTS = {
   showOnQuestUnits = true,   -- who else is on the quest when hovering a quest mob/NPC
   maxDots = 5,              -- more sharers than this collapse into "+N"
   loginSummary = true,       -- after login, list guildmates you share the most quests with
+  announceTurnIns = true,    -- "Queb: Quest completed: [link]" in party chat on turn-in (only without Questie)
   shareQuests = true,        -- "can share": send which quests you can share; show what guildmates can share with you
   showNearby = true,         -- also suggest online guildmates near your level (no shared quests needed)
   nearbyLevelRange = 3,      -- "near your level" = within this many levels

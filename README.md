@@ -1,4 +1,4 @@
-# Queb (v0.10.0)
+# Queb (v0.11.0)
 
 When you log in, the addon helps you find guildmates on the same quests, so you can group up instead of questing alone. Grouped questing is faster.
 
@@ -17,6 +17,7 @@ When you log in, the addon helps you find guildmates on the same quests, so you 
 - **Quest mob tooltips.** Hover a mob or NPC that Blizzard marks with one of your quests: one line names the guildmates and group members also on that quest, with their class circles. Settings → Quest mob tooltips.
 - **Circles in quest tooltips.** Hover over a quest area or quest marker on the world map, a quest in the map's quest list, or a quest in the tracker. Blizzard's tooltip then gains a row of class-colored circles plus each guildmate's progress. Turn it off with Settings → Quest tooltips.
 
+- **Quest completed in party chat.** When you turn in a quest while in a party, Queb posts "Queb: Quest completed: [quest]" (a clickable quest link) in party chat, the same message Questie sends. It only does this when Questie isn't loaded, so you never see it twice; with Questie, use Questie's own announce options. Not in raids, and not inside instances (the game blocks addon chat there). Each quest is announced once. Turn it off with Settings → Announce in party.
 - **Can share (yellow "!").** Queb shows quests a guildmate could share with you: quests they have and you don't, that you haven't done, and that are near your level. You'll see them in the Quebmates tab (a "!" with a count on their row; hover for the list), in the login summary ("can share 2") and in guild, OpenMap and zone tooltips. The reverse works too: hovering one of your quests shows "Can share with:" and the guildmates who could take it from you. The "!" is Blizzard's available-quest icon, never a class color, so it can't be confused with a guildmate circle. The game only lets players share a quest while grouped and nearby, so invite first. Queb can't check quest chains or class/race limits, so once in a while the game may still refuse a share. Both sides need Queb 0.8.3 or newer. Turn it off with Settings → Can share.
 - **Near your level.** When you share no quests with someone, the summary and the window also suggest online guildmates within ±3 levels of you (Settings → Level range changes this), with anyone in your zone listed first. This includes guildmates who don't have the addon, because their level and zone come from the guild roster.
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.11.0 (2026-11-15)
+- "Queb: Quest completed: [quest]" in party chat when you turn in a quest, like Questie's announcement. Only when Questie isn't loaded; party only (not raids or instances); once per quest. Setting: Settings → Sharing → Announce in party (grayed out, marked "(Questie)", while Questie is loaded).
+
 ## 0.10.0 (2026-11-15)
 - Party and raid members who aren't in your guild: party sync is now on by default (existing installs switched on once), so any Queb user in your group gets circles, progress, "Can share" and a Quebmates row.
 - Player tooltips: hover a group member (unit frames, raid frames, nameplates, world) or a known Queb user to see shared quests. Setting: Player tooltips.

@@ -506,6 +506,15 @@ function P:SetDemo(on)
       end
       self.list[peer.name] = peer
     end
+    -- roles (some with two, one with none) so the role icons show up
+    local demoRoles = {
+      ["Demo Paladin"] = { tank = true, healer = true }, ["Demo Mage"] = { damage = true },
+      ["Demo Druid"] = { healer = true }, ["Demo Rogue"] = { damage = true },
+      ["Demo Priest"] = { healer = true, damage = true }, ["Demo Warlock"] = {},
+    }
+    for name, roles in pairs(demoRoles) do
+      if self.list[name] then self.list[name].roles = roles end
+    end
     -- guildmates with no shared quests, to show the "near your level" section
     local nearby = { { "Demo Shaman", "SHAMAN", 0, zone }, { "Demo Warrior", "WARRIOR", 2, "Somewhere Else" } }
     for _, f in ipairs(nearby) do
@@ -513,6 +522,8 @@ function P:SetDemo(on)
                           hasState = true, demo = true, lastSeen = GetTime(),
                           level = math.max(1, myLevel + f[3]), zone = f[4] }
     end
+    self.list["Demo Shaman"].roles = { healer = true }
+    self.list["Demo Warrior"].roles = { tank = true, damage = true }
     -- "Can share": made-up quests (IDs no real quest uses) they can share with
     -- you, and your own quests they'd like from you.
     local demoQuests = {

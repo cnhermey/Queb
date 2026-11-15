@@ -1,18 +1,20 @@
-# Queb (v0.8.4)
+# Queb (v0.9.0)
 
 When you log in, the addon helps you find guildmates on the same quests, so you can group up instead of questing alone. Grouped questing is faster.
 
 - **Login summary.** About 20 seconds after you log in, chat lists the guildmates you share the most quests with, plus their level and zone. Click a name to whisper that player, or right-click it to invite them.
 - **The Queb window** (type `/queb`, click any circle, or go to Esc → Options → AddOns → Queb). It has two tabs:
-  - **Buddies:** guildmates ranked by shared quests, then by closest level. Each row has an Invite button, and hovering over a row compares your progress with theirs on each shared quest.
+  - **Quebmates:** guildmates ranked by shared quests, then by closest level. Each name has the roles that player picked (Blizzard's tank, healer and damage icons) right after it. Each row has an Invite button, and hovering over a row compares your progress with theirs on each shared quest.
   - **Settings:** every option, as Blizzard checkboxes and sliders. The same window appears in Blizzard's AddOns options, and changes in one show up in the other.
+- **Your role.** Right of the tabs, tick Tank, Healer and/or Damage, like the Dungeon Finder role check. Roles your class can't play are grayed out. Quebmates see your choice next to your name. Group members without Queb show the role assigned in the group, if any. Both sides need Queb 0.9.0 or newer to see each other's picks.
+- **Resizable window.** Drag the grabber in the bottom-right corner. The size and position are remembered.
 - **Class-colored circles right after each quest title** in the quest list and the objective tracker. They only use empty space: the addon measures where the title ends and where the next Blizzard element starts (the checkmark, for example), and never covers icons. Titles that wrap or are cut short get no circles on the row, but hovering over them still shows the circles in the tooltip. Each circle is a guildmate on that quest, and a gold ring means they're ready to turn it in. Hover to see progress.
 - **EllesmereUI Quest Tracker support.** When Ellesmere's own tracker is on (its default style on Forever), the circles appear on each quest row, to the **right** of the title. They go through Ellesmere's official row API, which reserves space there; the left side holds Ellesmere's focus buttons. Up to 3 circles fit, plus "+N". Hovering over an Ellesmere quest shows the same circles in its tooltip. With Ellesmere's "Blizzard" or "Classic" styles, the normal tracker circles appear after the title.
 - **Guild & Communities tooltips.** Hover over a guildmate in the guild member list to see "Queb: N shared quests", up to 6 of those quests with their progress, and a circle in their class color. When shared quests can't be seen, the tooltip shows a short reason: "no Queb, not grouped", "too far away", "offline" or "syncing". Turn it off with Settings → Guild tooltips.
 - **OpenMap player markers.** With OpenMap installed, hovering a player on its map shows the same Queb lines as the guild tooltip: guildmates' dots (when they share their position in OpenMap), party and raid dots, and zone badges (only the people you share quests with, most first). Turn it off with Settings → OpenMap players, or from OpenMap's own menu ("Queb: shared quests").
 - **Circles in quest tooltips.** Hover over a quest area or quest marker on the world map, a quest in the map's quest list, or a quest in the tracker. Blizzard's tooltip then gains a row of class-colored circles plus each guildmate's progress. Turn it off with Settings → Quest tooltips.
 
-- **Can share (yellow "!").** Queb shows quests a guildmate could share with you: quests they have and you don't, that you haven't done, and that are near your level. You'll see them in the Buddies tab (a "!" with a count on their row; hover for the list), in the login summary ("can share 2") and in guild, OpenMap and zone tooltips. The reverse works too: hovering one of your quests shows "Can share with:" and the guildmates who could take it from you. The "!" is Blizzard's available-quest icon, never a class color, so it can't be confused with a guildmate circle. The game only lets players share a quest while grouped and nearby, so invite first. Queb can't check quest chains or class/race limits, so once in a while the game may still refuse a share. Both sides need Queb 0.8.3 or newer. Turn it off with Settings → Can share.
+- **Can share (yellow "!").** Queb shows quests a guildmate could share with you: quests they have and you don't, that you haven't done, and that are near your level. You'll see them in the Quebmates tab (a "!" with a count on their row; hover for the list), in the login summary ("can share 2") and in guild, OpenMap and zone tooltips. The reverse works too: hovering one of your quests shows "Can share with:" and the guildmates who could take it from you. The "!" is Blizzard's available-quest icon, never a class color, so it can't be confused with a guildmate circle. The game only lets players share a quest while grouped and nearby, so invite first. Queb can't check quest chains or class/race limits, so once in a while the game may still refuse a share. Both sides need Queb 0.8.3 or newer. Turn it off with Settings → Can share.
 - **Near your level.** When you share no quests with someone, the summary and the window also suggest online guildmates within ±3 levels of you (Settings → Level range changes this), with anyone in your zone listed first. This includes guildmates who don't have the addon, because their level and zone come from the guild roster.
 
 ### Guildmates without the addon
@@ -38,7 +40,7 @@ Queb is built to look like part of WoW: Forever's own interface:
 
 ## First in-game test (solo)
 1. Pick up a few quests.
-2. Type `/queb`, open the Settings tab and tick **Demo guildmates**. This adds 1 to 7 fake guildmates to your first quests. Check the quest log, the tracker and the Buddies tab. Invite stays disabled for the fake guildmates.
+2. Type `/queb`, open the Settings tab and tick **Demo guildmates**. This adds 1 to 7 fake guildmates to your first quests. Check the quest log, the tracker and the Quebmates tab (demo guildmates have roles too). Tick a role next to the tabs, and drag the corner to resize. Invite stays disabled for the fake guildmates.
 3. Open Esc → Options → AddOns → Queb and check that the same window appears there.
 4. `/queb probe` reports which Blizzard frames, hooks and assets were found on this build, plus sync stats and known Queb users. Paste the output back into the project.
 5. Untick **Demo guildmates** to turn the demo off. (The demo always starts off after a reload.)
@@ -69,7 +71,8 @@ Default settings: guild sync on, party sync off, faded circles for grouped playe
 | `UI_Ellesmere.lua` | EllesmereUI Quest Tracker support: registers through `EllesmereUI.RegisterQuestTrackerRow` and refreshes with `EllesmereUI.RefreshQuestTrackerRows` |
 | `UI_Guild.lua` | Guild member tooltips: Modern `CommunitiesFrame` member list (load-on-demand, ScrollBox rows) and Classic `GuildFrame` rows |
 | `Options.lua` | Settings tab: Blizzard checkboxes, sliders and buttons for every option, through one setter (`ns.Options:Set`) |
-| `Buddies.lua` | Login summary; the Queb panel (Buddies + Settings tabs) built in the `/queb` window and in Esc → Options → AddOns; Invite (`C_PartyInfo.InviteUnit`) |
+| `Roles.lua` | Your roles (`QuebDB.roles`), class limits, role encoding for messages, Blizzard role icons, the role picker |
+| `Buddies.lua` | Login summary; the Queb panel (Quebmates + Settings tabs, role picker) built in the resizable `/queb` window and in Esc → Options → AddOns; Invite (`C_PartyInfo.InviteUnit`) |
 | `API.lua` | `Queb.GetSharers(questID)` and `RegisterCallback`, for other trackers |
 
 Protocol messages:

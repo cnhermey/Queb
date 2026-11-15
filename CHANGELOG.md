@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 (2026-11-15)
+- "Buddies" is now "Quebmates" (tab, chat, settings).
+- Role picker next to the tabs: Tank / Healer / Damage, any combination, limited by class. Shared with other Queb users (HI field 5, "@" part in ST; older builds ignore both).
+- Role icons next to each name in the Quebmates list (group role for members without Queb).
+- The Queb window is resizable (corner grabber); size is remembered.
+
 ## 0.8.4 (2026-11-15)
 - Plain row circles: dark rim + solid class color (highlight removed).
 

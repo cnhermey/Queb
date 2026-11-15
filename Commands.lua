@@ -74,12 +74,14 @@ local function Probe()
     .. ", class icons " .. tostring(C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("classicon-warrior") ~= nil))
   local f = B.frame
   P("  Icon in portrait: " .. tostring(f and f.qbPortraitSet or false))
+  P("  Roles: yours " .. ns.Roles:EncodeMine() .. ", icons " .. tostring(ns.Roles:IconSource())
+    .. ", window " .. (f and math.floor(f:GetWidth()) .. "x" .. math.floor(f:GetHeight()) or "?"))
   local me = {}
   for n in pairs(ns.playerNames or {}) do me[#me + 1] = "[" .. n .. "]" end
   P("  Your name forms: " .. table.concat(me, " "))
 end
 
--- Interface-driven: /queb opens the Queb window (Buddies + Settings tabs).
+-- Interface-driven: /queb opens the Queb window (Quebmates + Settings tabs).
 -- The only other command is a hidden developer report, /queb probe.
 SLASH_QUEB1 = "/queb"
 SlashCmdList.QUEB = function(msg)

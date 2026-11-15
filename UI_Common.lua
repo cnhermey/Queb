@@ -188,7 +188,7 @@ function UI:ShowSharersTooltip(owner, questID)
   if #sharers == 0 then GameTooltip:AddLine("No guildmates yet", UI.GRAY.r, UI.GRAY.g, UI.GRAY.b) end
   self:AddShareTargetsLine(GameTooltip, questID)
   -- Blizzard-style click hint: green, in angle brackets
-  GameTooltip:AddLine("<Click: Quest Buddies>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
+  GameTooltip:AddLine("<Click: Quebmates>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
   GameTooltip:Show()
 end
 

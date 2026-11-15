@@ -1,7 +1,8 @@
 -- Queb: "who should I quest with?"
 --   * Login summary in chat: top guildmates by shared quests (clickable names).
 --   * Main Queb window (/queb, a circle click, or Esc > Options > AddOns):
---     Buddies tab (ranked list, level, zone, Invite) + Settings tab.
+--     Quebmates tab (ranked list, roles, level, zone, Invite) + Settings tab,
+--     with the role picker beside the tabs. The window is resizable.
 local ADDON_NAME, ns = ...
 
 local B = {}
@@ -54,11 +55,11 @@ function B:PrintSummary(force)
   local buddies, nearby = GetLists()
   local P = ns.PrintLine
   if #buddies == 0 and #nearby == 0 then
-    if force then ns.Print("No quest buddies online") end
+    if force then ns.Print("No Quebmates online") end
     return
   end
   if #buddies > 0 then
-    ns.Print("Quest buddies online")
+    ns.Print("Quebmates online")
     for i = 1, math.min(3, #buddies) do
       local b = buddies[i]
       local info = InfoText(b)
@@ -101,7 +102,9 @@ end)
 -- it was dragged. Every Blizzard piece is feature-detected with a fallback.
 ---------------------------------------------------------------------------
 local UI = ns.UI
-local WIN_W, WIN_H = 460, 470
+local WIN_W, WIN_H = 520, 480           -- default size
+local MIN_W, MIN_H = 470, 420           -- settings page + tab row still fit
+local MAX_W, MAX_H = 1000, 900
 
 local function Invite(name)
   if C_PartyInfo and C_PartyInfo.InviteUnit then
@@ -127,6 +130,14 @@ local function RowTooltip(row)
   local c = UI.ClassColor(b.class)
   GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
   GameTooltip:SetText(b.name, c.r, c.g, c.b)
+  local roles = ns.Roles:For(b)
+  if roles and next(roles) then
+    local parts = {}
+    for _, r in ipairs(ns.Roles.ORDER) do
+      if roles[r] then parts[#parts + 1] = ns.Roles:Inline(r, 14) .. " " .. ns.Roles.LABEL[r] end
+    end
+    GameTooltip:AddLine(table.concat(parts, "  "), UI.WHITE.r, UI.WHITE.g, UI.WHITE.b)
+  end
   if row.kind == "nearby" then
     GameTooltip:AddLine("Near your level" .. (b.sameZone and ", same zone" or ""), UI.WHITE.r, UI.WHITE.g, UI.WHITE.b, true)
     -- Same status logic as every other Queb tooltip.
@@ -187,12 +198,14 @@ local function InitRow(row)
 
   row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-  row.name:SetWidth(130)
+  row.name:SetWidth(120)
   row.name:SetJustifyH("LEFT")
   row.name:SetWordWrap(false)
 
+  ns.Roles:InitRowIcons(row, row.name)
+
   row.count = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  row.count:SetPoint("LEFT", row.name, "RIGHT", 4, 0)
+  row.count:SetPoint("LEFT", row.name, "RIGHT", 6 + ns.Roles.ROW_SLOTS_W, 0)
   row.count:SetWidth(84)
   row.count:SetJustifyH("LEFT")
 
@@ -224,6 +237,7 @@ local function InitRow(row)
 end
 
 local function ShowMemberParts(row, shown)
+  if not shown then ns.Roles:HideRowIcons(row) end
   row.icon:SetShown(shown)
   row.name:SetShown(shown)
   row.count:SetShown(shown)
@@ -259,6 +273,7 @@ local function RenderRow(row, item)
   row.icon:SetAlpha(faded and 0.5 or 1)
   row.name:SetText(b.name)
   row.name:SetTextColor(c.r, c.g, c.b)
+  ns.Roles:ShowRowIcons(row, ns.Roles:For(b), faded and 0.5 or 1)
   if item.kind == "buddy" then
     local parts = {}
     if #b.shared > 0 then parts[#parts + 1] = #b.shared .. " shared" end
@@ -316,6 +331,51 @@ local function SavePosition(f)
   if point then ns.db.buddiesPos = { point, relPoint, x, y } end
 end
 
+local function SaveSize(f)
+  ns.db.windowSize = { math.floor(f:GetWidth() + 0.5), math.floor(f:GetHeight() + 0.5) }
+end
+
+local function RestoreSize(f)
+  local s = ns.db.windowSize
+  local w, h = WIN_W, WIN_H
+  if type(s) == "table" and tonumber(s[1]) and tonumber(s[2]) then w, h = s[1], s[2] end
+  f:SetSize(math.max(MIN_W, math.min(MAX_W, w)), math.max(MIN_H, math.min(MAX_H, h)))
+end
+
+-- Resizable like Blizzard's resizable windows: size grabber in the bottom
+-- right corner (Blizzard's chat-frame grabber art), bounded, size remembered.
+local function MakeResizable(f)
+  f:SetResizable(true)
+  if f.SetResizeBounds then
+    f:SetResizeBounds(MIN_W, MIN_H, MAX_W, MAX_H)
+  elseif f.SetMinResize then
+    f:SetMinResize(MIN_W, MIN_H)
+    if f.SetMaxResize then f:SetMaxResize(MAX_W, MAX_H) end
+  end
+  local grip = CreateFrame("Button", nil, f)
+  grip:SetSize(16, 16)
+  grip:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -5, 5)
+  grip:SetFrameLevel(f:GetFrameLevel() + 20)
+  grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+  grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+  grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+  grip:SetScript("OnMouseDown", function(_, button)
+    if button == "LeftButton" then f:StartSizing("BOTTOMRIGHT") end
+  end)
+  grip:SetScript("OnMouseUp", function()
+    f:StopMovingOrSizing()
+    SaveSize(f)
+    SavePosition(f)
+  end)
+  grip:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Drag to resize", 1, 1, 1)
+    GameTooltip:Show()
+  end)
+  grip:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  f.resizeGrip = grip
+end
+
 local function RestorePosition(f)
   f:ClearAllPoints()
   local p = ns.db.buddiesPos
@@ -357,13 +417,13 @@ local function CreateWindow()
 end
 
 ---------------------------------------------------------------------------
--- Main Queb panel: Blizzard top tabs "Buddies" / "Settings". The same panel
+-- Main Queb panel: Blizzard top tabs "Quebmates" / "Settings". The same panel
 -- is built twice from this code: inside the /queb window and inside
 -- Esc > Options > AddOns > Queb. Both instances share QuebDB and refresh
 -- together.
 ---------------------------------------------------------------------------
 B.panels = {}
-local TABS = { { id = "buddies", text = "Buddies" }, { id = "settings", text = "Settings" } }
+local TABS = { { id = "buddies", text = "Quebmates" }, { id = "settings", text = "Settings" } }
 
 local function MakeInset(parent)
   local ok, inset = pcall(CreateFrame, "Frame", nil, parent, "InsetFrameTemplate")
@@ -456,7 +516,11 @@ function B:BuildPanel(parent, tabIndent)
   end
   panel.numTabs = #TABS
 
-  -- Buddies page
+  -- your roles: right of the tabs, same row
+  panel.rolePicker = ns.Roles:BuildPicker(panel)
+  panel.rolePicker:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -4, 0)
+
+  -- Quebmates page
   local bp = CreateFrame("Frame", nil, panel)
   bp:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -34)
   bp:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
@@ -465,7 +529,7 @@ function B:BuildPanel(parent, tabIndent)
   inset:SetPoint("BOTTOMRIGHT", bp, "BOTTOMRIGHT", 0, 20)
   panel.empty = inset:CreateFontString(nil, "OVERLAY", "GameFontDisable")
   panel.empty:SetPoint("CENTER")
-  panel.empty:SetText("No quest buddies online")
+  panel.empty:SetText("No Quebmates online")
   local footer = bp:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   footer:SetPoint("BOTTOMLEFT", bp, "BOTTOMLEFT", 6, 4)
   footer:SetText("Hover a row for details")
@@ -516,7 +580,8 @@ end
 function B:Create()
   if self.frame then return self.frame end
   local f = CreateWindow()
-  f:SetSize(WIN_W, WIN_H)
+  RestoreSize(f)
+  MakeResizable(f)
   f:SetFrameStrata("HIGH")
   f:SetToplevel(true)
   f:SetClampedToScreen(true)
@@ -584,7 +649,7 @@ local function RegisterOptions()
       title:SetText("Queb")
       self.panel = B:BuildPanel(self, 0)
       self.panel:SetPoint("TOPLEFT", self, "TOPLEFT", 8, -44)
-      self.panel:SetSize(WIN_W - 16, WIN_H - 36)
+      self.panel:SetSize(MIN_W + 40, WIN_H - 36)
     end
   end)
   if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then

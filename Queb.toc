@@ -2,7 +2,7 @@
 ## Title: Queb
 ## Notes: Guildmates on your quests, in Blizzard's quest log and tracker.
 ## Author: cnhermey
-## Version: 0.8.4
+## Version: 0.9.0
 ## SavedVariables: QuebDB
 ## Category: Quests
 ## IconTexture: Interface\AddOns\Queb\Media\Icon
@@ -13,6 +13,7 @@ Core.lua
 QuestState.lua
 Peers.lua
 Comm.lua
+Roles.lua
 UI_Common.lua
 UI_Tracker.lua
 UI_QuestLog.lua

@@ -63,7 +63,7 @@ local LAYOUT = {
     { kind = "check", key = "shareGuild",        label = "Guild" },
     { kind = "check", key = "shareParty",        label = "Party and raid" },
     { kind = "check", key = "showNonAddonParty", label = "Group members without Queb" },
-    { header = "Buddies" },
+    { header = "Quebmates" },
     { kind = "check", key = "loginSummary", label = "Summary at login" },
     { kind = "check", key = "showNearby",   label = "Near your level" },
     { kind = "check", key = "shareQuests",  label = "Can share" },

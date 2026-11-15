@@ -3,15 +3,17 @@
 -- Wire frame (one addon message, <= 255 bytes):
 --   <protocol>:<TYPE>:<msgId>:<part>:<parts>:<payload chunk>
 -- Payloads (after reassembly):
---   HI  addonVersion;stateHash;wantState(0|1);CLASS     presence / heartbeat
+--   HI  addonVersion;stateHash;wantState(0|1);CLASS;ROLES   presence / heartbeat
 --   RQ  name,name,...  or  *                            "send your full state"
---   ST  stateHash;CLASS;entry;entry;...                 full quest state
+--   ST  stateHash;CLASS;@ROLES;entry;entry;...          full quest state
 --   QU  stateHash;entry;entry;...                       changed quests ("qid,-" = removed)
 --   WT  qid,qid,...  or  -                              quests I could take from a guildmate
 -- Entry format: see ns.EncodeEntry (Util.lua).
 -- ST/QU may also carry "can share" parts (!qid:level:title, ns.EncodeShare)
 -- for quests the sender can share. Older builds skip those parts and ignore
 -- WT, so this needs no protocol bump. Neither is part of the state hash.
+-- ROLES (v0.9.0): "T", "H", "D" in that order, or "-" (ns.Roles:Encode).
+-- Older builds read only HI fields 1-4 and skip the "@" part in ST.
 --
 -- Everything is state-based and idempotent, so when sending is blocked
 -- (instances, throttling) we drop messages and resync the full state later
@@ -162,6 +164,7 @@ end
 function C:SendHello(channel, wantState)
   if not self:IsActive(channel) then return end
   local payload = ns.VERSION .. ";" .. ns.QuestState.hash .. ";" .. (wantState and "1" or "0") .. ";" .. MyClass()
+    .. ";" .. ns.Roles:EncodeMine()
   self:Send("HI", payload, channel)
 end
 
@@ -169,7 +172,7 @@ function C:SendState(channel)
   if not self:IsActive(channel) or not ns.QuestState.ready then return end
   local qs = ns.QuestState:StatePayload() -- "hash;entry;entry"
   local hash, rest = string.match(qs, "^([^;]*);?(.*)$")
-  local payload = hash .. ";" .. MyClass()
+  local payload = hash .. ";" .. MyClass() .. ";@" .. ns.Roles:EncodeMine()
   if rest and rest ~= "" then payload = payload .. ";" .. rest end
   local shares = ns.QuestState:ShareParts()
   if #shares > 0 then payload = payload .. ";" .. table.concat(shares, ";") end
@@ -321,12 +324,13 @@ local function IsHash(h) return h and string.match(h, "^%x%x%x%x%x%x%x%x$") ~= n
 
 C.handlers.HI = function(self, body, channel, sender, src)
   local f = ns.Split(body, ";")
-  local addonVer, hash, want, class = f[1], f[2], f[3], f[4]
+  local addonVer, hash, want, class, roles = f[1], f[2], f[3], f[4], f[5]
   if not IsHash(hash) then return end
   local peer = ns.Peers:Touch(sender, src)
   if not peer then return end
   peer.ver = addonVer and string.sub(addonVer, 1, 16)
   peer.class = ValidClass(class) or peer.class
+  if roles then peer.roles = ns.Roles:Decode(roles) or peer.roles end
   if want == "1" then self:ScheduleState(channel) end
   if not peer.hasState or peer.hash ~= hash then self:ScheduleRequest(channel, sender) end
   ns.Peers:Changed()
@@ -347,12 +351,14 @@ C.handlers.ST = function(self, body, channel, sender, src)
   local parts = ns.Split(body, ";")
   local hash, class = parts[1], parts[2]
   if not IsHash(hash) then return end
-  local entries, quests, shares = {}, {}, {}
-  for k = 3, math.min(#parts, 2 + MAX_PARTS) do
+  local entries, quests, shares, roles = {}, {}, {}, nil
+  for k = 3, math.min(#parts, 3 + MAX_PARTS) do
     local qid, q = ns.DecodeEntry(parts[k])
     if qid and q then
       entries[qid] = parts[k]
       quests[qid] = q
+    elseif string.sub(parts[k], 1, 1) == "@" then
+      roles = ns.Roles:Decode(string.sub(parts[k], 2)) or roles
     else
       local sid, sh = ns.DecodeShare(parts[k])
       if sid then shares[sid] = sh end
@@ -362,6 +368,7 @@ C.handlers.ST = function(self, body, channel, sender, src)
   if not peer then return end
   peer.class = ValidClass(class) or peer.class
   peer.entries, peer.quests, peer.hasState, peer.hash = entries, quests, true, hash
+  if roles then peer.roles = roles end
   peer.push = {}
   for qid, sh in pairs(shares) do
     if quests[qid] then peer.push[qid] = sh end

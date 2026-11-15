@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.2 (2026-11-15)
+- Role picker shows only the roles your class can play (no grayed-out checkboxes).
+
 ## 0.9.1 (2026-11-15)
 - Window can be made much shorter (min height 220 instead of 420); the Settings tab scrolls when it doesn't fit.
 - Resizing keeps the window's top edge in place.

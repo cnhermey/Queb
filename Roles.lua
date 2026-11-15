@@ -2,7 +2,7 @@
 --
 -- Each player picks any combination of roles in the role picker next to the
 -- Quebmates / Settings tabs (like Blizzard's Dungeon Finder role check).
--- Roles a class can't play on Forever are disabled. The choice is saved in
+-- Roles a class can't play on Forever aren't shown at all. The choice is saved in
 -- QuebDB.roles and sent to other Queb users (HI field 5 and an "@TH" part in
 -- ST; older builds ignore both). Quebmates then show role icons next to each
 -- name. Group members without Queb fall back to their assigned group role.
@@ -227,10 +227,6 @@ function R:BuildPicker(parent)
     local function Tip(owner)
       GameTooltip:SetOwner(owner, "ANCHOR_BOTTOM")
       GameTooltip:SetText(LABEL[role], 1, 1, 1)
-      if not cb:IsEnabled() then
-        local _, className = UnitClass("player")
-        GameTooltip:AddLine("Not for " .. (className or "your class"), ns.UI.GRAY.r, ns.UI.GRAY.g, ns.UI.GRAY.b)
-      end
       GameTooltip:Show()
     end
     cell:SetScript("OnEnter", Tip)
@@ -246,16 +242,23 @@ function R:BuildPicker(parent)
   return p
 end
 
+-- Only the roles this class can play get a cell; the rest are hidden and
+-- the visible ones close up (e.g. a Mage sees just "Role [Damage]").
 function R:RefreshPicker(p)
   if not ns.db or not ns.db.roles then return end
   local class = MyClass()
+  local n = 0
   for _, cell in ipairs(p.cells) do
     local allowed = self:Allowed(class, cell.role)
-    cell.check:SetEnabled(allowed)
-    cell.check:SetChecked(allowed and ns.db.roles[cell.role] and true or false)
-    cell.icon:SetDesaturated(not allowed)
-    cell.icon:SetAlpha(allowed and 1 or 0.4)
+    cell:SetShown(allowed)
+    if allowed then
+      cell:ClearAllPoints()
+      cell:SetPoint("LEFT", p, "LEFT", 40 + n * CELL, 0)
+      cell.check:SetChecked(ns.db.roles[cell.role] and true or false)
+      n = n + 1
+    end
   end
+  p:SetWidth(40 + n * CELL + 4) -- picker is anchored by its right edge
 end
 
 function R:RefreshPickers()

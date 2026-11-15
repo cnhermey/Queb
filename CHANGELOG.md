@@ -1,0 +1,25 @@
+# Changelog
+
+## 0.8.4 (2026-11-15)
+- Plain row circles: dark rim + solid class color (highlight removed).
+
+## 0.8.3 (2026-11-15)
+- "Can share": yellow "!" for quests a guildmate can share with you (Buddies, login summary, guild and OpenMap tooltips) and "Can share with:" on your own quest tooltips. New WT message, backward compatible. Setting: Settings → Buddies → Can share.
+
+## 0.8.2 (2026-11-15)
+- Custom Queb icon (web with 9 class-colored circles): window portrait, AddOns list, options page.
+
+## 0.8.1
+- Queb lines on OpenMap player markers and zone badges.
+
+## 0.8.0
+- `/queb` opens the main window (Buddies + Settings tabs); same panel in Esc → Options → AddOns.
+
+## 0.7.x
+- Native Blizzard look pass; short-phrase text; unknown status shows only the reason.
+
+## 0.6.0
+- Renamed from Team Up Forever to Queb.
+
+## 0.1 – 0.5
+- Guild quest sharing protocol, row circles, login summary, Buddies window, quest/guild tooltips, EllesmereUI Quest Tracker support.

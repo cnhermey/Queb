@@ -352,9 +352,11 @@ local function ForEachElement(container, fn)
   end
 end
 
-function UI:SetDotsAfterText(decorator, key, container, questID, text, maxDots)
+-- rightEdge (optional): screen x the circles must stay left of, when free
+-- space continues past the container (e.g. Questie's tracker margin).
+function UI:SetDotsAfterText(decorator, key, container, questID, text, maxDots, rightEdge)
   local left, width = Num(text:GetLeft()), Num(text:GetWidth())
-  local rowRight = Num(container:GetRight())
+  local rowRight = Num(rightEdge) or Num(container:GetRight())
   if not (left and width and rowRight) or width <= 0 then
     self:Release(decorator, key)
     return false

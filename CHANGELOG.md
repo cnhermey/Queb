@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.0 (2026-11-15)
+- Circles on Questie's quest tracker, right after each quest title (in the space Questie keeps at its right edge). Questie's tracker tooltip gets the "Also on this quest" lines. Setting: Objective tracker.
+- Blizzard tracker: if a quest block has no `HeaderText` (possible on Forever), Queb now finds the title the way EllesmereUI does (first text region) instead of drawing nothing.
+- `/queb probe` shows how many tracker quests Queb found and how many got circles, for Blizzard's and Questie's trackers.
+
 ## 0.11.0 (2026-11-15)
 - "Queb: Quest completed: [quest]" in party chat when you turn in a quest, like Questie's announcement. Only when Questie isn't loaded; party only (not raids or instances); once per quest. Setting: Settings → Sharing → Announce in party (grayed out, marked "(Questie)", while Questie is loaded).
 

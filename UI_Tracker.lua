@@ -6,7 +6,7 @@
 local _, ns = ...
 local UI = ns.UI
 
-local T = { modules = {}, hooks = {}, installed = {} }
+local T = { modules = {}, hooks = {}, installed = {}, stats = { rows = 0, placed = 0, noTitle = 0 } }
 ns.Tracker = T
 
 -- Quest-carrying tracker modules (11.x+ names, then 10.x names).
@@ -71,6 +71,26 @@ local function IsFrame(v)
   return type(v) == "table" and type(v.GetObjectType) == "function"
 end
 
+-- The quest title FontString of a block. `HeaderText` on Mainline; on
+-- Forever EllesmereUI finds it as the block's first FontString region
+-- ("confirmed via dump"), so that's the fallback. Cached weakly, never
+-- stored on Blizzard's frame.
+local titleCache = setmetatable({}, { __mode = "k" })
+local function BlockTitle(block)
+  local fs = block.HeaderText
+  if type(fs) == "table" and fs.GetObjectType and fs:GetObjectType() == "FontString" then return fs end
+  fs = titleCache[block]
+  if fs then return fs end
+  if block.GetRegions then
+    for _, r in ipairs({ block:GetRegions() }) do
+      if r.GetObjectType and r:GetObjectType() == "FontString" then
+        titleCache[block] = r
+        return r
+      end
+    end
+  end
+end
+
 local function ForEachBlock(module, fn)
   local used = module.usedBlocks
   if type(used) ~= "table" then return end
@@ -97,13 +117,15 @@ local function DecorateModern(seen)
       if block:IsVisible() then
         local qid = BlockQuestID(block)
         if qid then
-          local header = block.HeaderText
+          local header = BlockTitle(block)
           seen[block] = true
+          T.stats.rows = T.stats.rows + 1
           -- After the title text, in free space only (the POI/map-marker
           -- button sits left of the title).
           if header then
-            UI:SetDotsAfterText("tracker", block, block, qid, header)
+            if UI:SetDotsAfterText("tracker", block, block, qid, header) then T.stats.placed = T.stats.placed + 1 end
           else
+            T.stats.noTitle = T.stats.noTitle + 1
             UI:Release("tracker", block)
           end
         end
@@ -134,7 +156,8 @@ local function DecorateClassic(seen)
         local qid = byTitle[text] or byTitle[StripLevel(text)]
         if qid then
           seen[line] = true
-          UI:SetDotsAfterText("tracker", line, QuestWatchFrame, qid, line)
+          T.stats.rows = T.stats.rows + 1
+          if UI:SetDotsAfterText("tracker", line, QuestWatchFrame, qid, line) then T.stats.placed = T.stats.placed + 1 end
         end
       end
     end
@@ -143,6 +166,7 @@ end
 
 UI:RegisterDecorator("tracker", function()
   local seen = {}
+  T.stats.rows, T.stats.placed, T.stats.noTitle = 0, 0, 0
   if ns.db.showInTracker then
     DecorateModern(seen)
     DecorateClassic(seen)

@@ -22,6 +22,7 @@ local ROOTS = {
   { "ObjectiveTrackerFrame", "tracker" },
   { "QuestWatchFrame", "tracker" },
   { "EUI_CustomQuestTracker", "tracker" }, -- EllesmereUI Quest Tracker (Forever custom tracker)
+  { "Questie_BaseFrame", "tracker" },      -- Questie's tracker (its rows' party-progress tooltip)
   { "CommunitiesFrame", "guild" },         -- Guild & Communities (Modern)
   { "GuildFrame", "guild" },               -- Guild list (Classic)
 }
@@ -49,6 +50,8 @@ local function QuestIDFromOwner(owner)
       or ValidID(owner.focusedQuestID)
       or (owner.parentModule and ValidID(owner.id)) -- tracker block
       or (owner.kind == "quest" and ValidID(owner.id)) -- EllesmereUI custom tracker title row
+      or ((owner.mode == "quest" or owner.mode == "objective") and type(owner.Quest) == "table"
+          and ValidID(owner.Quest.Id)) -- Questie tracker line
 end
 
 -- Fallback: first tooltip line is usually the quest title.
@@ -125,6 +128,9 @@ local function HookTooltip(tooltip)
   hooksecurefunc(tooltip, "ClearLines", Reset)
   tooltip:HookScript("OnHide", Reset)
 end
+
+-- Other GameTooltips (e.g. Questie's tracker tooltip, made on first use).
+function TT:Hook(tooltip) HookTooltip(tooltip) end
 
 ns.Listen("LOGIN", function()
   HookTooltip(GameTooltip)

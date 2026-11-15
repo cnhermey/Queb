@@ -55,6 +55,11 @@ local function Probe()
     .. ", GetGuildRosterInfo: " .. tostring(GetGuildRosterInfo ~= nil))
   P("  Guild UI: CommunitiesFrame " .. tostring(CommunitiesFrame ~= nil) .. " (hooked " .. tostring(ns.GuildUI.boxHooked == true)
     .. "), Classic GuildFrame " .. tostring(GuildFrame ~= nil) .. " (hooked " .. tostring(ns.GuildUI.classicHooked == true) .. ")")
+  local Ts, Qs = ns.Tracker.stats, ns.QuestieUI
+  P("  Tracker rows: Blizzard " .. Ts.rows .. " quests, " .. Ts.placed .. " with circles"
+    .. (Ts.noTitle > 0 and (", " .. Ts.noTitle .. " no title found") or "")
+    .. " · Questie " .. (Qs:Loaded() and (Qs.stats.rows .. " quests, " .. Qs.stats.placed .. " with circles, tracker "
+    .. (Qs:TrackerShown() and "shown" or "hidden") .. ", hook " .. tostring(Qs.hooked)) or "not loaded"))
   local E = ns.Ellesmere
   P("  EllesmereUI tracker API: " .. tostring(E:Available()) .. ", row hook registered: " .. tostring(E.registered)
     .. ", custom tracker shown: " .. tostring(E:CustomTrackerActive()))

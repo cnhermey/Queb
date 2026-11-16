@@ -579,8 +579,12 @@ local SOURCE_ORDER = { guild = 1, group = 2, demo = 3, other = 4 }
 
 -- Returns an array of sharers for questID:
 -- { name, unit?, source = "group"|"guild"|"demo"|"other", hasAddon,
---   complete?, objectives? }   (complete/objectives nil when unknown)
-function P:GetSharers(questID)
+--   complete?, objectives?, done? }   (complete/objectives nil when unknown)
+-- withDone (v0.14.1): also people known to have turned the quest in (done =
+-- true, after everyone on it). Queb only knows that from their dungeon quest
+-- answers (DA), so it's dungeon quests in practice. Circles and quest
+-- tooltips ask for them; the public API and mob tooltips don't.
+function P:GetSharers(questID, withDone)
   local out = {}
   local covered = {}
 
@@ -612,7 +616,20 @@ function P:GetSharers(questID)
     end
   end
 
+  if withDone then
+    for name, peer in pairs(self.list) do
+      if not peer.quests[questID] and peer.dq and peer.dq[questID] == "D" then
+        local unit = self:FindRosterUnit(name)
+        out[#out + 1] = {
+          name = name, unit = unit, hasAddon = true, done = true, class = self:GetClass(peer),
+          source = (peer.sources.GUILD and "guild") or (unit and "group") or (peer.demo and "demo") or "other",
+        }
+      end
+    end
+  end
+
   table.sort(out, function(a, b)
+    if (a.done and true or false) ~= (b.done and true or false) then return not a.done end
     local oa, ob = SOURCE_ORDER[a.source] or 9, SOURCE_ORDER[b.source] or 9
     if oa ~= ob then return oa < ob end
     return a.name < b.name
@@ -686,6 +703,9 @@ function P:SetDemo(on)
       peer.push[d[2]] = { lvl = myLevel, title = d[3] }
       peer.quests[d[2]] = { c = false, obj = { { 0, 5 } } }
     end
+    -- done (turned in): shows a circle with a green check
+    if ids[1] then self.list["Demo Warlock"].dq = { [ids[1]] = "D" } end
+    if ids[2] then self.list["Demo Shaman"].dq = { [ids[2]] = "D" } end
     if ids[1] then self.list["Demo Warrior"].wants = { [ids[1]] = true } end
     if ids[2] then self.list["Demo Shaman"].wants = { [ids[2]] = true } end
     if #ids == 0 then

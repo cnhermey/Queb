@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.1 (2026-11-16)
+- Smoother circles everywhere (quest log, trackers, tooltips, Dungeons section, DungeonJournal rows): new anti-aliased `Dot`, `Ring` and `Check` textures made for small sizes, the dark rim built into the dot (no separate shadow layer to drift), pixel snapping off. Replaces Blizzard's round mask, which looked crunchy when shrunk. Dots are 12 px with a 1 px gap.
+- New: a circle with a **green check** in the middle = that player has turned the quest in. Shown on quest rows, in quest tooltips ("Done") and in the Dungeons section (replaces the plain check there). Known from the dungeon quest answers (DQ/DA).
+- Demo guildmates include a "done" example. `/queb probe` "Look:" line reports the smoothing support.
+
 ## 0.14.0 (2026-11-16)
 - New **Dungeons** section in the Quebmates tab: one collapsible block per dungeon (the dungeon name is the title), a column per person (you, group members, guildmates with Queb near the dungeon's level) and a row per quest showing who is on it, ready, done, can pick it up, needs a pre-quest or a higher level, or can't take it. Hover for details; click a quest to share it; Shift-click a dungeon to put its quest names into chat.
 - Quest lists come from DungeonJournal when installed, else from Questie's database.

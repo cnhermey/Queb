@@ -218,26 +218,20 @@ local function HasQueb(p)
   return p.isMe or (p.peer and p.peer.hasState) or false
 end
 
+-- A cell = one Queb dot (UI:NewDot: class fill, gold ring, green check)
+-- plus an icon texture and a text for the other statuses.
 local function MakeCell(row)
-  local c = {}
-  c.shadow = row:CreateTexture(nil, "ARTWORK", nil, 1)
-  c.shadow:SetTexture(UI.CIRCLE)
-  c.shadow:SetVertexColor(0, 0, 0, 0.85)
-  c.shadow:SetSize(12, 12)
-  c.tex = row:CreateTexture(nil, "ARTWORK", nil, 2)
-  c.tex:SetPoint("CENTER", c.shadow, "CENTER")
-  c.ring = row:CreateTexture(nil, "ARTWORK", nil, 4)
-  c.ring:SetTexture(UI.RING)
-  c.ring:SetVertexColor(UI.GOLD.r, UI.GOLD.g, UI.GOLD.b, 1)
-  c.ring:SetSize(14, 14)
-  c.ring:SetPoint("CENTER", c.shadow, "CENTER")
+  local c = UI:NewDot(row, 1)
+  c.tex = row:CreateTexture(nil, "ARTWORK", nil, 5)
+  c.tex:SetPoint("CENTER", c.fill, "CENTER")
+  if c.tex.SetSnapToPixelGrid then pcall(c.tex.SetSnapToPixelGrid, c.tex, false) end
   c.txt = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  c.txt:SetPoint("CENTER", c.shadow, "CENTER")
+  c.txt:SetPoint("CENTER", c.fill, "CENTER")
   return c
 end
 
 local function HideCell(c)
-  c.shadow:Hide(); c.tex:Hide(); c.ring:Hide(); c.txt:Hide()
+  UI:HideDot(c); c.tex:Hide(); c.txt:Hide()
 end
 
 local function ResetTex(tex, size)
@@ -249,19 +243,12 @@ local function ResetTex(tex, size)
   tex:Show()
 end
 
--- One cell: the person's status icon, or (code == nil) their class circle.
+-- One cell: the person's status, or (code == nil) their class circle.
+-- On quest = circle, ready = circle + gold ring, done = circle + green check.
 local function SetCell(c, code, p)
   HideCell(c)
-  if code == nil or code == "L" or code == "R" then
-    local col = UI.ClassColor(p.class)
-    ResetTex(c.tex, 10)
-    c.tex:SetTexture(UI.CIRCLE)
-    c.tex:SetVertexColor(col.r, col.g, col.b, HasQueb(p) and 1 or 0.45)
-    c.shadow:Show()
-    c.ring:SetShown(code == "R")
-  elseif code == "D" then
-    ResetTex(c.tex, 14)
-    c.tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+  if code == nil or code == "L" or code == "R" or code == "D" then
+    UI:StyleDot(c, p.class, HasQueb(p) and 1 or 0.45, code == "R", code == "D")
   elseif code == "A" or code == "P" or code == "V" then
     ResetTex(c.tex, 14)
     SetAvailable(c.tex)
@@ -309,8 +296,8 @@ local function LayoutDungeonRow(row, n, indent, font)
   for i = 1, n do
     local c = g.cells[i] or MakeCell(row)
     g.cells[i] = c
-    c.shadow:ClearAllPoints()
-    c.shadow:SetPoint("CENTER", row, "RIGHT", -(4 + CELL / 2) - (n - i) * CELL, 0)
+    c.fill:ClearAllPoints()
+    c.fill:SetPoint("CENTER", row, "RIGHT", -(4 + CELL / 2) - (n - i) * CELL, 0)
   end
   for i = n + 1, #g.cells do HideCell(g.cells[i]) end
   local cellsW = n * CELL + 8
@@ -572,7 +559,7 @@ local function RenderRow(row, item)
     row.icon:SetAtlas(atlas)
     row.icon:SetVertexColor(1, 1, 1)
   else
-    row.icon:SetTexture(UI.CIRCLE)
+    UI.SmoothTexture(row.icon, UI.CIRCLE)
     row.icon:SetVertexColor(c.r, c.g, c.b)
   end
   row.icon:SetAlpha(faded and 0.5 or 1)

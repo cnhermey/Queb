@@ -14,7 +14,7 @@ ns.UI = UI
 
 local MEDIA = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 UI.MEDIA = MEDIA
-local DOT, GAP = 10, 2
+local DOT, GAP = 12, 1 -- dot size (dark rim included) and gap between dots
 local UNKNOWN_COLOR = { r = 0.6, g = 0.6, b = 0.6 }
 
 ---------------------------------------------------------------------------
@@ -41,17 +41,27 @@ end
 function UI.Wrap(c, text) return "|c" .. Hex(c) .. text .. "|r" end
 local Wrap = UI.Wrap
 
--- Blizzard's round mask (white disc) when this build has it; else our TGA.
-local function FileExists(path)
-  if GetFileIDFromPath then
-    local ok, id = pcall(GetFileIDFromPath, path)
-    return ok and id ~= nil
-  end
-  return false
+-- Dot art (v0.14.1): our own anti-aliased textures, authored for the small
+-- sizes Queb draws at. Blizzard's round mask (TempPortraitAlphaMask) is a
+-- 64 px disc with a ~1 texel edge; shrunk to 10-12 px it looked crunchy, and
+-- the separate dark disc behind it snapped to the pixel grid on its own, so
+-- the rim came out uneven. Dot.tga is one 32 px disc with the dark rim baked
+-- in (vertex color tints only the white fill; the rim stays dark), edges
+-- soft over ~1 screen pixel. Ring.tga (gold, "ready to turn in") and
+-- Check.tga (green, "done") are made the same way. Pixel snapping is turned
+-- off on them so they're placed and filtered smoothly.
+UI.CIRCLE = MEDIA .. "Dot"
+UI.RING = MEDIA .. "Ring"   -- tinted Blizzard gold
+UI.CHECK = MEDIA .. "Check" -- tinted Blizzard green
+local DOT_PX = 32           -- texture size, for |T inline icons
+
+-- Texture set up for smooth scaling: mipmapped filtering when the client
+-- offers it, no pixel-grid snapping (feature-detected).
+function UI.SmoothTexture(tex, path)
+  if not pcall(tex.SetTexture, tex, path, nil, nil, "TRILINEAR") then tex:SetTexture(path) end
+  if tex.SetSnapToPixelGrid then pcall(tex.SetSnapToPixelGrid, tex, false) end
+  if tex.SetTexelSnappingBias then pcall(tex.SetTexelSnappingBias, tex, 0) end
 end
-local BLIZZ_CIRCLE = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
-UI.CIRCLE = FileExists(BLIZZ_CIRCLE) and BLIZZ_CIRCLE or (MEDIA .. "Circle")
-UI.RING = MEDIA .. "Ring" -- no Blizzard gold ring at this size; ours is tinted Blizzard gold
 
 -- "Can share" marker: Blizzard's yellow "!" (available quest). Never class-
 -- colored, so it can't be mistaken for a guildmate circle or the gold ring.
@@ -103,8 +113,52 @@ UI.STATUS_REASONS = {
 function UI:CircleIcon(classFile, size)
   local c = ClassColor(classFile)
   size = size or 12
-  return string.format("|T%s:%d:%d:0:0:64:64:0:64:0:64:%d:%d:%d|t", UI.CIRCLE, size, size,
-    math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
+  return string.format("|T%s:%d:%d:0:0:%d:%d:0:%d:0:%d:%d:%d:%d|t", UI.CIRCLE, size, size,
+    DOT_PX, DOT_PX, DOT_PX, DOT_PX, math.floor(c.r * 255), math.floor(c.g * 255), math.floor(c.b * 255))
+end
+
+-- Progress text for one sharer (done / ready / counts / no Queb).
+function UI:SharerProgress(s)
+  if s.done then return Wrap(UI.GREEN, "Done") end
+  if not s.hasAddon then return Wrap(UI.GRAY, "on quest, no Queb") end
+  return self:ProgressText(s.complete, s.objectives)
+end
+
+---------------------------------------------------------------------------
+-- One dot: class-colored fill (rim baked in), gold ring = ready to turn in,
+-- green check in the middle = done (turned in). Shared by every place Queb
+-- draws circles (row groups, Dungeons section cells).
+---------------------------------------------------------------------------
+function UI:NewDot(parent, sublevel)
+  sublevel = sublevel or 2
+  local d = {}
+  d.fill = parent:CreateTexture(nil, "ARTWORK", nil, sublevel)
+  UI.SmoothTexture(d.fill, UI.CIRCLE)
+  d.fill:SetSize(DOT, DOT)
+  d.ring = parent:CreateTexture(nil, "ARTWORK", nil, sublevel + 1)
+  UI.SmoothTexture(d.ring, UI.RING)
+  d.ring:SetVertexColor(UI.GOLD.r, UI.GOLD.g, UI.GOLD.b, 1)
+  d.ring:SetSize(DOT + 4, DOT + 4)
+  d.ring:SetPoint("CENTER", d.fill, "CENTER")
+  d.check = parent:CreateTexture(nil, "ARTWORK", nil, sublevel + 2)
+  UI.SmoothTexture(d.check, UI.CHECK)
+  d.check:SetVertexColor(UI.GREEN.r, UI.GREEN.g, UI.GREEN.b, 1)
+  d.check:SetSize(DOT - 1, DOT - 1)
+  d.check:SetPoint("CENTER", d.fill, "CENTER")
+  return d
+end
+
+-- alpha: 1, or faded for group members without Queb.
+function UI:StyleDot(d, classFile, alpha, ready, done)
+  local c = ClassColor(classFile)
+  d.fill:SetVertexColor(c.r, c.g, c.b, alpha or 1)
+  d.fill:Show()
+  d.ring:SetShown(ready and not done and true or false)
+  d.check:SetShown(done and true or false)
+end
+
+function UI:HideDot(d)
+  d.fill:Hide(); d.ring:Hide(); d.check:Hide()
 end
 
 -- Append "also on this quest" lines (guildmates and group members) to an already-populated tooltip.
@@ -112,7 +166,6 @@ end
 -- Layout follows Blizzard's tooltips: blank spacer, gold section header,
 -- then name / progress double lines.
 local TOOLTIP_MAX = 5
-local NO_QUEB_ON_QUEST = "on quest, no Queb"
 local SHARE_NAMES_MAX = 4
 
 -- "! Can share with: Asha, Bren" — guildmates who could take this quest
@@ -129,7 +182,7 @@ function UI:AddShareTargetsLine(tooltip, questID)
 end
 
 function UI:AddSharersToTooltip(tooltip, questID)
-  local sharers = ns.Peers:GetSharers(questID)
+  local sharers = ns.Peers:GetSharers(questID, true)
   local hasTargets = #ns.Peers:ShareTargets(questID) > 0
   if #sharers == 0 and not hasTargets then return false end
   tooltip:AddLine(" ")
@@ -137,7 +190,7 @@ function UI:AddSharersToTooltip(tooltip, questID)
     tooltip:AddLine("Also on this quest", UI.GOLD.r, UI.GOLD.g, UI.GOLD.b)
     for i = 1, math.min(#sharers, TOOLTIP_MAX) do
       local s = sharers[i]
-      local prog = s.hasAddon and self:ProgressText(s.complete, s.objectives) or Wrap(UI.GRAY, NO_QUEB_ON_QUEST)
+      local prog = self:SharerProgress(s)
       tooltip:AddDoubleLine(self:CircleIcon(s.class, 10) .. " " .. ColorName(s.name, s.class), prog)
     end
     if #sharers > TOOLTIP_MAX then
@@ -168,7 +221,7 @@ local SOURCE_TAG = { group = "group", demo = "demo", other = nil, guild = nil }
 
 function UI:ShowSharersTooltip(owner, questID)
   if not questID then return end
-  local sharers = ns.Peers:GetSharers(questID)
+  local sharers = ns.Peers:GetSharers(questID, true)
   GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
   GameTooltip:SetText(ns.QuestState:GetTitle(questID) or ("Quest " .. questID), UI.GOLD.r, UI.GOLD.g, UI.GOLD.b)
   GameTooltip:AddLine("Also on this quest", UI.WHITE.r, UI.WHITE.g, UI.WHITE.b)
@@ -182,8 +235,7 @@ function UI:ShowSharersTooltip(owner, questID)
     local label = ColorName(s.name, s.class)
     local tag = SOURCE_TAG[s.source]
     if tag then label = label .. " " .. Wrap(UI.GRAY, "(" .. tag .. ")") end
-    local prog = s.hasAddon and self:ProgressText(s.complete, s.objectives) or Wrap(UI.GRAY, NO_QUEB_ON_QUEST)
-    GameTooltip:AddDoubleLine(label, prog)
+    GameTooltip:AddDoubleLine(label, self:SharerProgress(s))
   end
   if #sharers == 0 then GameTooltip:AddLine("Nobody yet", UI.GRAY.r, UI.GRAY.g, UI.GRAY.b) end
   self:AddShareTargetsLine(GameTooltip, questID)
@@ -197,40 +249,12 @@ end
 ---------------------------------------------------------------------------
 local free = {}
 
--- One dot = Blizzard's round mask in two layers (+ ring), like the class-
--- colored party blips on Blizzard's minimap: dark rim, class-colored fill,
--- no highlight (owner: solid circles; a small gloss read as a flat light
--- spot at 10 px and washed out the class color). Gold ring = ready to turn in.
-local function CreateDot(g)
-  local d = {}
-  d.shadow = g:CreateTexture(nil, "ARTWORK", nil, 1)
-  d.shadow:SetTexture(UI.CIRCLE)
-  d.shadow:SetVertexColor(0, 0, 0, 0.85)
-  d.shadow:SetSize(DOT + 2, DOT + 2)
-
-  d.fill = g:CreateTexture(nil, "ARTWORK", nil, 2)
-  d.fill:SetTexture(UI.CIRCLE)
-  d.fill:SetSize(DOT, DOT)
-  d.fill:SetPoint("CENTER", d.shadow, "CENTER")
-
-  d.ring = g:CreateTexture(nil, "ARTWORK", nil, 4)
-  d.ring:SetTexture(UI.RING)
-  d.ring:SetVertexColor(UI.GOLD.r, UI.GOLD.g, UI.GOLD.b, 1)
-  d.ring:SetSize(DOT + 4, DOT + 4)
-  d.ring:SetPoint("CENTER", d.shadow, "CENTER")
-  return d
-end
-
-local function SetDotShown(d, shown)
-  d.shadow:SetShown(shown)
-  d.fill:SetShown(shown)
-  if not shown then d.ring:Hide() end
-end
+local function CreateDot(g) return UI:NewDot(g, 1) end
 
 local function CreateGroup()
   local g = CreateFrame("Button", nil, UIParent)
   UI.ours[g] = true
-  g:SetSize(DOT, DOT + 2)
+  g:SetSize(DOT, DOT + 4)
   g.dots = {}
   g.more = g:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   g.more:SetPoint("LEFT", g, "LEFT", 0, 0)
@@ -266,15 +290,12 @@ local function Layout(g, sharers)
     local s = sharers[i]
     local d = g.dots[i] or CreateDot(g)
     g.dots[i] = d
-    local c = ClassColor(s.class)
-    d.fill:SetVertexColor(c.r, c.g, c.b, s.hasAddon and 1 or 0.45)
-    d.shadow:ClearAllPoints()
-    d.shadow:SetPoint("LEFT", g, "LEFT", x + 1, 0)
-    SetDotShown(d, true)
-    d.ring:SetShown(s.complete == true)
+    d.fill:ClearAllPoints()
+    d.fill:SetPoint("LEFT", g, "LEFT", x, 0)
+    UI:StyleDot(d, s.class, s.hasAddon and 1 or 0.45, s.complete == true, s.done == true)
     x = x + DOT + GAP
   end
-  for i = shown + 1, #g.dots do SetDotShown(g.dots[i], false) end
+  for i = shown + 1, #g.dots do UI:HideDot(g.dots[i]) end
   if total > shown then
     g.more:SetText("+" .. (total - shown))
     g.more:ClearAllPoints()
@@ -284,7 +305,7 @@ local function Layout(g, sharers)
   else
     g.more:Hide()
   end
-  g:SetSize(math.max(DOT, x), DOT + 4)
+  g:SetSize(math.max(DOT, x - GAP), DOT + 4)
   return true
 end
 
@@ -297,7 +318,7 @@ function UI:SetDots(decorator, key, parent, questID, point, relTo, relPoint, x, 
     owned = setmetatable({}, { __mode = "k" })
     self.owned[decorator] = owned
   end
-  local sharers = ns.Peers:GetSharers(questID)
+  local sharers = ns.Peers:GetSharers(questID, true)
   if #sharers == 0 then
     self:Release(decorator, key)
     return false
@@ -383,7 +404,7 @@ function UI:SetDotsAfterText(decorator, key, container, questID, text, maxDots, 
 
   local startX = textEnd + 5
   local room = bound - 3 - startX
-  if room < DOT + 2 then
+  if room < DOT + 1 then
     self:Release(decorator, key)
     return false
   end

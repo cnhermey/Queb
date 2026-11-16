@@ -97,7 +97,11 @@ local function Probe()
   P("  Hooks installed: " .. (#ns.Tracker.hooks > 0 and table.concat(ns.Tracker.hooks, ", ") or "none"))
   local B = ns.Buddies
   B:Create() -- builds the window (hidden) so we can report what it used
-  P("  Look: circle " .. (ns.UI.CIRCLE:find("AddOns", 1, true) and "Queb fallback" or "Blizzard")
+  local probeTex = UIParent:CreateTexture()
+  P("  Look: circle Queb Dot/Ring/Check, pixel snapping off " .. tostring(probeTex.SetSnapToPixelGrid ~= nil)
+    .. ", trilinear " .. tostring(pcall(probeTex.SetTexture, probeTex, ns.UI.CIRCLE, nil, nil, "TRILINEAR")))
+  probeTex:Hide()
+  P("  Look:"
     .. ", window " .. tostring(B.template) .. ", list " .. tostring(B.list)
     .. ", class icons " .. tostring(C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("classicon-warrior") ~= nil))
   local f = B.frame

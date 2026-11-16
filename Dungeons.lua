@@ -7,7 +7,7 @@
 --     API), else Questie's database (QuestieDB: global QuestDB + Questie's
 --     ZoneDB dungeon table). Without either, the Dungeons section says so.
 --   * each person's status per quest. "In log" comes from Queb's normal sync
---     (ST/QU). "Done", "can pick up", "needs pre-quest", "level too low" and
+--     (ST/QU). "Done", "available", "needs pre-quest", "level too low" and
 --     "not for them" can only be worked out on that player's own client, so
 --     the helper asks (DQ) and the player's Queb answers (DA).
 --
@@ -18,7 +18,7 @@
 -- sender's own facts), so one answer serves everyone on the channel.
 --
 -- Status letters:
---   L in log · R ready to turn in · D done · A can pick up · P needs pre-quest
+--   L in log · R ready to turn in · D done · A available · P needs pre-quest
 --   V level too low · X not for them (class/faction/profession, or lost)
 --   ? unknown (no quest database on their side)
 -- Display-only (never on the wire): S syncing · U update Queb · N not shared
@@ -46,7 +46,7 @@ D.MIN_VERSION = MIN_VERSION
 D.MAX_PEOPLE = MAX_PEOPLE
 
 D.TEXT = {
-  L = "on quest", R = "ready to turn in", D = "done", A = "can pick up",
+  L = "on quest", R = "ready to turn in", D = "done", A = "available",
   P = "needs pre-quest", V = "level too low", X = "not for them", ["?"] = "unknown",
   S = "syncing", U = "update Queb", N = "not shared", Q = "no Queb", F = "too far away", O = "offline",
 }
@@ -126,11 +126,16 @@ local function Finish(list, source)
   ns.Fire("DUNGEONS_READY")
 end
 
+local NOT_DUNGEON_PAGES = { ["Cozy Sleeping Bag"] = true, ["Onyxia Attunement"] = true, ["Mallet of Zul'Farrak"] = true }
+
 local function BuildFromFDJ(F)
   local list = {}
   wipe(D.fdjIndex)
   for name, def in pairs(F.DB) do
-    if type(name) == "string" and type(def) == "table" and type(def.quests) == "table" then
+    -- questChainPage = DungeonJournal's non-dungeon quest chains (Cozy
+    -- Sleeping Bag, Onyxia Attunement, Mallet of Zul'Farrak): not dungeons
+    if type(name) == "string" and type(def) == "table" and type(def.quests) == "table"
+        and not def.questChainPage and not NOT_DUNGEON_PAGES[name] then
       local qs = {}
       for _, q in ipairs(def.quests) do
         if type(q) == "table" and type(q.id) == "number" and q.id > 0 then

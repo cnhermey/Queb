@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.2 (2026-11-16)
+- Map quest tooltips no longer visibly rebuild: Blizzard builds them over a few frames, so Queb's lines flashed under the title and then jumped to the bottom. The tooltip now stays hidden until it's finished (a couple of frames, at most 0.3 s) and appears complete. Also applies to OpenMap player markers.
+- Dungeons section: DungeonJournal's quest-chain pages (Cozy Sleeping Bag, Onyxia Attunement, Mallet of Zul'Farrak) are no longer listed as dungeons.
+- Dungeons tooltips: clearer words: "on quest", "available" (was "can pick up" / "to pick up"), "need pre-quest" and "level too low" counted separately (were lumped as "not yet").
+- Shift-click a dungeon title now tells your group (party, raid or instance chat) which of its quests you're on, then which you still need, as clickable quest links (plain titles if the list is long; at most 3 lines each). Done quests and quests not for your class are left out. Not grouped: "Not in a party".
+- The green "share" text on dungeon quest rows is now a real **Share** button (clicking the rest of the row no longer shares).
+
 ## 0.14.1 (2026-11-16)
 - Smoother circles everywhere (quest log, trackers, tooltips, Dungeons section, DungeonJournal rows): new anti-aliased `Dot`, `Ring` and `Check` textures made for small sizes, the dark rim built into the dot (no separate shadow layer to drift), pixel snapping off. Replaces Blizzard's round mask, which looked crunchy when shrunk. Dots are 12 px with a 1 px gap.
 - New: a circle with a **green check** in the middle = that player has turned the quest in. Shown on quest rows, in quest tooltips ("Done") and in the Dungeons section (replaces the plain check there). Known from the dungeon quest answers (DQ/DA).

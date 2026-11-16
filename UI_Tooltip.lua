@@ -69,9 +69,77 @@ local function QuestIDFromTitle(tooltip)
   end
 end
 
+---------------------------------------------------------------------------
+-- Map tooltips settle hidden (v0.14.2). Blizzard builds a quest area/marker
+-- tooltip over a few frames (title first, objectives a frame later), so our
+-- lines showed under the title for a moment, then jumped to the bottom.
+-- Now a map tooltip Queb adds to stays invisible (alpha 0) until its
+-- content has been the same for SETTLE_FRAMES frames (at most SETTLE_MAX
+-- seconds), then appears finished. Alpha is always restored on hide.
+---------------------------------------------------------------------------
+local SETTLE_FRAMES, SETTLE_MAX = 2, 0.3
+local settle = setmetatable({}, { __mode = "k" }) -- tooltip -> state
+
+local function Signature(tooltip, owner, key)
+  local h = tooltip:GetHeight() or 0
+  return tostring(owner) .. ":" .. tostring(key) .. ":" .. (tooltip:NumLines() or 0) .. ":" .. math.floor(h + 0.5)
+end
+
+local function Reveal(tooltip)
+  local st = settle[tooltip]
+  if st and st.hidden then tooltip:SetAlpha(st.alpha or 1) end
+  if st then st.hidden, st.done = false, true end
+end
+
+local function EndSettle(tooltip)
+  local st = settle[tooltip]
+  if not st then return end
+  if st.hidden then tooltip:SetAlpha(st.alpha or 1) end
+  settle[tooltip] = nil
+end
+
+-- Called after we added lines to a map tooltip (owner + what it is about).
+local function Settle(tooltip, owner, key)
+  local st = settle[tooltip]
+  if not st or st.owner ~= owner or st.key ~= key then
+    if st then EndSettle(tooltip) end
+    st = { owner = owner, key = key, start = GetTime(), stable = 0, alpha = 1 }
+    settle[tooltip] = st
+  end
+  if st.done then return end
+  -- OnUpdate compares content frame to frame; a rebuild with the same
+  -- content (map blobs rebuild every frame) still counts as settled
+  if not st.hidden then
+    local a = tooltip:GetAlpha()
+    st.alpha = (type(a) == "number" and not ns.IsSecret(a) and a > 0.05) and a or 1
+    st.hidden = true
+  end
+  tooltip:SetAlpha(0)
+end
+
+local function OnUpdate(tooltip)
+  local st = settle[tooltip]
+  if not st or st.done then return end
+  if tooltip:GetOwner() ~= st.owner then return EndSettle(tooltip) end
+  local sig = Signature(tooltip, st.owner, st.key)
+  if sig == st.sig then st.stable = st.stable + 1 else st.sig, st.stable = sig, 0 end
+  if st.stable >= SETTLE_FRAMES or GetTime() - st.start > SETTLE_MAX then
+    Reveal(tooltip)
+  elseif st.hidden then
+    tooltip:SetAlpha(0) -- Blizzard may reset alpha while rebuilding
+  end
+end
+
 local loggedOwners = {}
 local function OnShow(tooltip)
-  if TT.busy or TT.appended[tooltip] then return end
+  if TT.busy then return end
+  local st = settle[tooltip]
+  if st and tooltip:GetOwner() ~= st.owner then EndSettle(tooltip); st = nil end
+  if TT.appended[tooltip] then
+    -- same build shown again: keep it hidden until it settles
+    if st and st.hidden and not st.done then tooltip:SetAlpha(0) end
+    return
+  end
   if not ns.db or not ns.db.showInTooltips then return end
   local owner = tooltip:GetOwner()
   if not owner or UI.ours[owner] then return end
@@ -87,6 +155,7 @@ local function OnShow(tooltip)
         TT.busy = true
         tooltip:Show()
         TT.busy = false
+        Settle(tooltip, owner, kind)
       end
       return
     end
@@ -121,10 +190,15 @@ local function OnShow(tooltip)
     TT.busy = true
     tooltip:Show() -- resize to fit our lines (re-entry guarded by TT.busy)
     TT.busy = false
+    if area == "map" then Settle(tooltip, owner, questID) end
   end
 end
 
 local function Reset(tooltip) TT.appended[tooltip] = nil end
+local function OnHide(tooltip)
+  TT.appended[tooltip] = nil
+  EndSettle(tooltip)
+end
 
 local function HookTooltip(tooltip)
   if not tooltip or TT.hooked[tooltip] then return end
@@ -133,7 +207,8 @@ local function HookTooltip(tooltip)
   -- a fresh tooltip (new owner / cleared lines) may need our lines again
   hooksecurefunc(tooltip, "SetOwner", Reset)
   hooksecurefunc(tooltip, "ClearLines", Reset)
-  tooltip:HookScript("OnHide", Reset)
+  tooltip:HookScript("OnHide", OnHide)
+  tooltip:HookScript("OnUpdate", OnUpdate)
 end
 
 -- Other GameTooltips (e.g. Questie's tracker tooltip, made on first use).

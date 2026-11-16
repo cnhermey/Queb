@@ -281,12 +281,26 @@ local function InitDungeonParts(row)
   g.title:SetWordWrap(false)
   g.summary = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   g.summary:SetJustifyH("RIGHT")
+  -- v0.14.2: a real Blizzard button, so "share" reads as something to press
+  g.share = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+  g.share:SetSize(52, 18)
+  g.share:SetText("Share")
+  local fs = g.share:GetFontString()
+  if fs then fs:SetFontObject("GameFontNormalSmall") end
+  g.share:SetScript("OnClick", function(self)
+    local item = self:GetParent().item
+    if item and item.kind == "dquest" then
+      local q = item.block.quests[item.qi]
+      if q and DG:Share(q.id) then PlaySoundSafe("IG_MAINMENU_OPTION_CHECKBOX_ON") end
+    end
+  end)
+  g.share:Hide()
 end
 
 local function HideDungeonParts(row)
   local g = row.dg
   if not g then return end
-  g.expand:Hide(); g.title:Hide(); g.summary:Hide()
+  g.expand:Hide(); g.title:Hide(); g.summary:Hide(); g.share:Hide()
   for _, c in ipairs(g.cells) do HideCell(c) end
 end
 
@@ -308,6 +322,8 @@ local function LayoutDungeonRow(row, n, indent, font)
   g.title:SetPoint("RIGHT", g.summary, "LEFT", -6, 0)
   g.title:SetFontObject(font)
   g.title:Show()
+  g.share:Hide()
+  return cellsW
 end
 
 local function Counts(block, pIndex)
@@ -322,10 +338,11 @@ end
 local function PersonSummary(block, pIndex)
   local n = Counts(block, pIndex)
   local parts = {}
-  if n.L or n.R then parts[#parts + 1] = ((n.L or 0) + (n.R or 0)) .. " on" end
+  if n.L or n.R then parts[#parts + 1] = ((n.L or 0) + (n.R or 0)) .. " on quest" end
   if n.D then parts[#parts + 1] = n.D .. " done" end
-  if n.A then parts[#parts + 1] = UI.Wrap(UI.GOLD, n.A .. " to pick up") end
-  if n.P or n.V then parts[#parts + 1] = ((n.P or 0) + (n.V or 0)) .. " not yet" end
+  if n.A then parts[#parts + 1] = UI.Wrap(UI.GOLD, n.A .. " available") end
+  if n.P then parts[#parts + 1] = n.P .. " need pre-quest" end
+  if n.V then parts[#parts + 1] = n.V .. " level too low" end
   if #parts == 0 then
     -- nothing known: the one reason (e.g. "no Queb", "syncing")
     local code = block.codes[1] and block.codes[1][pIndex]
@@ -358,12 +375,18 @@ local function RenderDungeonQuest(row, item)
   InitDungeonParts(row)
   local b, g, qi = item.block, row.dg, item.qi
   local q = b.quests[qi]
-  LayoutDungeonRow(row, #b.people, 24, "GameFontHighlightSmall")
+  local cellsW = LayoutDungeonRow(row, #b.people, 24, "GameFontHighlightSmall")
   g.expand:Hide()
   local lvl = q.level and UI.Wrap(UI.GRAY, "[" .. q.level .. "] ") or ""
   g.title:SetText(lvl .. DG:Title(q))
-  g.summary:SetText(DG:CanShareNow(q.id) and UI.Wrap(UI.GREEN, "share") or "")
+  g.summary:SetText("")
   g.summary:Show()
+  if DG:CanShareNow(q.id) then
+    g.share:ClearAllPoints()
+    g.share:SetPoint("RIGHT", row, "RIGHT", -cellsW + 2, 0)
+    g.share:Show()
+    g.title:SetPoint("RIGHT", g.share, "LEFT", -6, 0)
+  end
   for i, p in ipairs(b.people) do SetCell(g.cells[i], b.codes[qi][i], p) end
 end
 
@@ -382,7 +405,7 @@ DungeonHeaderTooltip = function(row)
     GameTooltip:AddDoubleLine(UI:CircleIcon(p.class, 10) .. " " .. UI.ColorName(name, p.class), PersonSummary(b, i))
   end
   GameTooltip:AddLine(row.item.open and "<Click: close>" or "<Click: open>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
-  GameTooltip:AddLine("<Shift-click: names to chat>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
+  GameTooltip:AddLine("<Shift-click: tell party>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
   GameTooltip:Show()
 end
 
@@ -403,36 +426,83 @@ DungeonQuestTooltip = function(row)
     local name = p.isMe and "You" or p.name
     GameTooltip:AddDoubleLine(UI:CircleIcon(p.class, 10) .. " " .. UI.ColorName(name, p.class), StatusText(b.codes[qi][i]))
   end
-  if DG:CanShareNow(q.id) then
-    GameTooltip:AddLine("<Click: share>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
-  end
   GameTooltip:Show()
 end
 
--- Shift-click a dungeon: "Deadmines: Quest A, Quest B" into the open chat
--- box (Blizzard's shift-click-to-link behavior; never sent by Queb).
-local function InsertIntoChat(text)
-  local fns = {}
-  if ChatFrameUtil and ChatFrameUtil.InsertLink then fns[#fns + 1] = function(t) return ChatFrameUtil.InsertLink(t) end end
-  if ChatEdit_InsertLink then fns[#fns + 1] = ChatEdit_InsertLink end
-  for _, fn in ipairs(fns) do
-    local ok, done = pcall(fn, text)
-    if ok and done then return true end
+-- Shift-click a dungeon header (v0.14.2): tell your group which of its
+-- quests you're on, then which you don't have yet. Your own status
+-- (Dungeons:LocalStatus), so it works even when you're not a column.
+-- Done and "not for you" quests are left out.
+local CHAT_MAX = 240      -- chat line limit is 255 (room for "+N more")
+local MAX_LINES = 3       -- per list, so a big dungeon can't flood chat
+
+local function ChatQuest(q, link)
+  if link and ns.Announce then
+    local l = ns.Announce:QuestLink(q.id, DG:Title(q), q.level)
+    if l then return l end
   end
-  return false
+  return (string.gsub(DG:Title(q), "[|%c]", ""))
 end
 
-local function DungeonChatText(b)
-  local names = {}
-  for qi, q in ipairs(b.quests) do
-    for pi, p in ipairs(b.people) do
-      if not p.isMe and b.codes[qi][pi] == "A" then names[#names + 1] = DG:Title(q) break end
+-- "label A, B, C" split into chat-sized lines; "+N more" if it gets too long.
+local function ChatLines(label, quests)
+  for _, link in ipairs({ true, false }) do -- links first; plain titles if too long
+    local lines, cur, used = {}, label, 0
+    for i, q in ipairs(quests) do
+      local piece = ChatQuest(q, link)
+      local add = (cur == label and "" or ", ") .. piece
+      if #cur + #add > CHAT_MAX then
+        lines[#lines + 1] = cur
+        cur = label .. piece
+      else
+        cur = cur .. add
+      end
+      used = i
+      if #lines >= MAX_LINES then break end
+    end
+    if #lines < MAX_LINES then
+      lines[#lines + 1] = cur
+      return lines
+    end
+    if not link then
+      -- still too long: keep MAX_LINES lines, note the rest
+      local left = #quests - used + 1
+      lines[MAX_LINES] = lines[MAX_LINES] .. ", +" .. left .. " more"
+      return lines
     end
   end
-  if #names == 0 then
-    for _, q in ipairs(b.quests) do names[#names + 1] = DG:Title(q) end
+end
+
+local function GroupChannel()
+  if LE_PARTY_CATEGORY_INSTANCE and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)
+      and not IsInGroup(LE_PARTY_CATEGORY_HOME) then return "INSTANCE_CHAT" end
+  if IsInRaid() then return "RAID" end
+  if IsInGroup() then return "PARTY" end
+end
+
+local function TellGroup(b)
+  local channel = GroupChannel()
+  if not channel then ns.Print("Not in a party") return end
+  local on, need = {}, {}
+  for _, q in ipairs(b.quests) do
+    local code = DG:LocalStatus(q.id)
+    if code == "L" or code == "R" then on[#on + 1] = q
+    elseif code ~= "D" and code ~= "X" then need[#need + 1] = q end
   end
-  return b.dungeon.name .. ": " .. table.concat(names, ", ")
+  local name = b.dungeon.name
+  local lines = {}
+  if #on > 0 then
+    for _, l in ipairs(ChatLines(name .. " quests I'm on: ", on)) do lines[#lines + 1] = l end
+  end
+  if #need > 0 then
+    for _, l in ipairs(ChatLines(name .. " quests I need: ", need)) do lines[#lines + 1] = l end
+  end
+  if #lines == 0 then lines[1] = name .. ": all quests done" end
+  local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
+  for _, l in ipairs(lines) do
+    local ok, err = pcall(send, l, channel)
+    if not ok then ns.Debug("tell party failed:", tostring(err)) break end
+  end
 end
 
 local function OnRowClick(row)
@@ -440,15 +510,12 @@ local function OnRowClick(row)
   if not item then return end
   if item.kind == "dheader" then
     if IsShiftKeyDown() then
-      if not InsertIntoChat(DungeonChatText(item.block)) then ns.Print("Open chat first") end
+      TellGroup(item.block)
       return
     end
     PlaySoundSafe(item.open and "IG_MAINMENU_OPTION_CHECKBOX_OFF" or "IG_MAINMENU_OPTION_CHECKBOX_ON")
     DG:SetOpen(item.block.dungeon.key, not item.open)
     B:Update()
-  elseif item.kind == "dquest" then
-    local q = item.block.quests[item.qi]
-    if DG:CanShareNow(q.id) then DG:Share(q.id) end
   end
 end
 

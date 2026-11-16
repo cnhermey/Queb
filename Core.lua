@@ -61,6 +61,9 @@ ns.DEFAULTS = {
   shareQuests = true,        -- "can share": send which quests you can share; show what guildmates can share with you
   showNearby = true,         -- also suggest online guildmates near your level (no shared quests needed)
   nearbyLevelRange = 3,      -- "near your level" = within this many levels
+  dungeonsGroup = true,      -- Dungeons section: check group members (v0.14.0)
+  dungeonsGuild = true,      -- Dungeons section: check guildmates with Queb
+  shareDungeonQuests = true, -- answer "done / can pick up" for dungeon quests when someone asks
   peerTimeoutMinutes = 15,   -- forget peers we have not heard from
   debug = false,
 }

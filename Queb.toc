@@ -2,11 +2,11 @@
 ## Title: Queb
 ## Notes: Guildmates and group members on your quests, in Blizzard's quest log, tracker and tooltips.
 ## Author: cnhermey
-## Version: 0.13.0
+## Version: 0.14.0
 ## SavedVariables: QuebDB
 ## Category: Quests
 ## IconTexture: Interface\AddOns\Queb\Media\Icon
-## OptionalDeps: EllesmereUI, EllesmereUIQuestTracker, OpenMap, Questie
+## OptionalDeps: EllesmereUI, EllesmereUIQuestTracker, OpenMap, Questie, QuestieDB, ForeverDungeonJournal
 
 Util.lua
 Core.lua
@@ -15,6 +15,7 @@ Peers.lua
 Comm.lua
 Roles.lua
 Announce.lua
+Dungeons.lua
 UI_Common.lua
 UI_Tracker.lua
 UI_QuestLog.lua
@@ -24,6 +25,7 @@ UI_Questie.lua
 UI_Guild.lua
 UI_OpenMap.lua
 UI_Unit.lua
+UI_DungeonJournal.lua
 Options.lua
 Buddies.lua
 API.lua

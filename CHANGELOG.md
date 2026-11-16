@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.0 (2026-11-16)
+- New **Dungeons** section in the Quebmates tab: one collapsible block per dungeon (the dungeon name is the title), a column per person (you, group members, guildmates with Queb near the dungeon's level) and a row per quest showing who is on it, ready, done, can pick it up, needs a pre-quest or a higher level, or can't take it. Hover for details; click a quest to share it; Shift-click a dungeon to put its quest names into chat.
+- Quest lists come from DungeonJournal when installed, else from Questie's database.
+- "Done" / "can pick up" are asked from each player's Queb (new `DQ`/`DA` messages; older builds ignore them and show "update Queb").
+- Circles on DungeonJournal's quest rows, right after the quest name, with the usual tooltip. Follows Settings → Quest log.
+- New settings: Sharing → Dungeon quests; Quebmates → Dungeons: group, Dungeons: guild (all on).
+- `/queb probe` adds a "Dungeons:" line.
+
 ## 0.13.0 (2026-11-15)
 - "Can share" now checks quest prerequisites (earlier quests in the chain, class, race, reputation, breadcrumbs) with Questie's quest database. No Questie, or a quest Questie doesn't know: no "!" (Queb never guesses).
 - When the game refuses a share ("not eligible", "already done", …), the sharer's Queb tells the other player's Queb, and the "!" for that quest stays hidden for them until they level up. The sharer stops seeing them in "Can share with:".

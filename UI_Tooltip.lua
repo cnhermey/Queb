@@ -25,6 +25,7 @@ local ROOTS = {
   { "Questie_BaseFrame", "tracker" },      -- Questie's tracker (its rows' party-progress tooltip)
   { "CommunitiesFrame", "guild" },         -- Guild & Communities (Modern)
   { "GuildFrame", "guild" },               -- Guild list (Classic)
+  { "ForeverDungeonJournalFrame", "dungeonjournal" }, -- DungeonJournal quest rows (v0.14.0)
 }
 
 local function AreaOf(owner)
@@ -102,7 +103,13 @@ local function OnShow(tooltip)
     return
   end
 
-  local questID = QuestIDFromOwner(owner) or QuestIDFromTitle(tooltip)
+  local questID
+  if area == "dungeonjournal" then
+    -- only rows we decorated; its other tooltips (items, bosses) are left alone
+    questID = ns.DungeonJournalUI and ns.DungeonJournalUI:QuestOf(owner)
+  else
+    questID = QuestIDFromOwner(owner) or QuestIDFromTitle(tooltip)
+  end
   if ns.db.debug and not loggedOwners[owner] then
     loggedOwners[owner] = true
     ns.Debug("tooltip in", area, "owner", owner.GetDebugName and owner:GetDebugName() or "?", "quest", questID or "none")

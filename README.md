@@ -1,4 +1,4 @@
-# Queb (v0.13.0)
+# Queb (v0.14.0)
 
 When you log in, the addon helps you find guildmates on the same quests, so you can group up instead of questing alone. Grouped questing is faster.
 
@@ -20,6 +20,8 @@ When you log in, the addon helps you find guildmates on the same quests, so you 
 
 - **Quest completed in party chat.** When you turn in a quest while in a party, Queb posts "Queb: Quest completed: [quest]" (a clickable quest link) in party chat, the same message Questie sends. It only does this when Questie isn't loaded, so you never see it twice; with Questie, use Questie's own announce options. Not in raids, and not inside instances (the game blocks addon chat there). Each quest is announced once. Turn it off with Settings → Announce in party.
 - **Can share (yellow "!").** Queb shows quests a guildmate could share with you: quests they have and you don't, that you haven't done, and that are near your level. You'll see them in the Quebmates tab (a "!" with a count on their row; hover for the list), in the login summary ("can share 2") and in guild, OpenMap and zone tooltips. The reverse works too: hovering one of your quests shows "Can share with:" and the guildmates who could take it from you. The "!" is Blizzard's available-quest icon, never a class color, so it can't be confused with a guildmate circle. The game only lets players share a quest while grouped and nearby, so invite first. Queb only shows the "!" when it can confirm you meet the quest's requirements (earlier quests in the chain, class, race, reputation). It checks them with **Questie's quest database**, so without Questie installed you won't see a "!" for quests a guildmate can share with you (Queb never guesses). If the game still refuses a share, Queb remembers that and hides the "!" for that quest until you level up. Both sides need Queb 0.13.0 or newer for this check; older versions are left out of "Can share with:". Turn it off with Settings → Can share.
+- **Dungeons (in the Quebmates tab).** Below your Quebmates, one block per dungeon, titled with the dungeon's name and level range; click a title to open or close it. Each block shows a column per person: you, your group members and guildmates with Queb near that dungeon's level (class circles in the title row tell you whose column is whose). Each quest row shows everyone's status: class circle = on the quest (gold ring = ready to turn in), green check = done, yellow "!" = can pick it up now, gray "!" = needs a pre-quest or a higher level, "–" = not for them (class, faction, profession), "?" = can't tell (no Queb, not grouped, too far away). Hover a row for the quest's level, where to pick it up, its pre-quests and everyone's status in words; click it to share the quest when you have it and the game allows sharing. Shift-click a dungeon title to put "Dungeon: quest, quest…" into your open chat box. Listed: dungeons near your level or a group member's level (Settings → Level range), plus any dungeon someone listed is on a quest for. The quest lists come from **DungeonJournal** if installed, else from **Questie's** database (which doesn't know some new Forever dungeons). "Done" and "can pick up" are worked out on each player's own client, so they need Queb 0.14.0 or newer on their side. Settings → Quebmates → **Dungeons: group** / **Dungeons: guild** choose whom to check; Settings → Sharing → **Dungeon quests** lets others see your status.
+- **DungeonJournal quest rows.** With DungeonJournal open on a dungeon's quests, Queb's circles appear right after each quest name (same rules as the quest log: only in free space), and hovering the row lists who's on it. Follows Settings → Quest log.
 - **Near your level.** When you share no quests with someone, the summary and the window also suggest online guildmates within ±3 levels of you (Settings → Level range changes this), with anyone in your zone listed first. This includes guildmates who don't have the addon, because their level and zone come from the guild roster.
 
 ### Guildmates without the addon
@@ -76,6 +78,8 @@ Default settings: guild sync on, party sync on, faded circles for grouped player
 | `UI_Ellesmere.lua` | EllesmereUI Quest Tracker support: registers through `EllesmereUI.RegisterQuestTrackerRow` and refreshes with `EllesmereUI.RefreshQuestTrackerRows` |
 | `UI_Guild.lua` | Guild member tooltips: Modern `CommunitiesFrame` member list (load-on-demand, ScrollBox rows) and Classic `GuildFrame` rows |
 | `UI_Unit.lua` | Unit tooltips (`TooltipDataProcessor` post-call): shared quests on players you're grouped with or know through Queb; who else is on the quest on quest mobs/NPCs |
+| `Dungeons.lua` | Dungeon quest lists (DungeonJournal, else Questie's database), each person's status per quest, `DQ`/`DA` messages, sharing from the Dungeons section |
+| `UI_DungeonJournal.lua` | Circles on DungeonJournal's quest rows (post-hook on its `MarkLostQuestRows`) |
 | `Options.lua` | Settings tab: Blizzard checkboxes, sliders and buttons for every option, through one setter (`ns.Options:Set`) |
 | `Roles.lua` | Your roles (`QuebDB.roles`), class limits, role encoding for messages, Blizzard role icons, the role picker |
 | `Buddies.lua` | Login summary; the Queb panel (Quebmates + Settings tabs, role picker) built in the resizable `/queb` window and in Esc → Options → AddOns; Invite (`C_PartyInfo.InviteUnit`) |
@@ -86,12 +90,14 @@ Protocol messages:
 - `RQ`: request a peer's state.
 - `ST`: full state.
 - `QU`: changed quests only.
+- `DQ` / `DA` (0.14.0): "your status for these dungeon quests" and the answer (done, can pick up, needs pre-quest, …). Older builds ignore them.
 
 Each message carries a hash of the sender's quest state. If a receiver's copy no longer matches that hash, it asks for the full state again, so missed messages fix themselves.
 
 Taint safety: the addon only uses post-hooks (`hooksecurefunc` and `HookScript`) and only creates frames it owns. It never writes fields onto Blizzard frames, and every refresh is deferred and coalesced.
 
 ## Needs in-game verification
+- Dungeons: `/queb probe` "Dungeons:" line (source, dungeons, quests, asked/answered, DungeonJournal hook and rows with circles). Open DungeonJournal on a dungeon's quests and check the circles sit after the names without touching its icons.
 - Frame and method names in both UI presets (run `/queb probe`).
 - The Queb page in Esc → Options → AddOns (registered with Blizzard's `Settings` API).
 - Where the dots sit after each title. They should never overlap Blizzard icons; check rows with long titles.

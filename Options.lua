@@ -69,10 +69,13 @@ local LAYOUT = {
     { kind = "check", key = "announceTurnIns", label = "Announce in party",
       disabledLabel = "Announce in party (Questie)",
       disabled = function() return ns.Announce and ns.Announce:QuestieLoaded() end },
+    { kind = "check", key = "shareDungeonQuests", label = "Dungeon quests" },
     { header = "Quebmates" },
     { kind = "check", key = "loginSummary", label = "Summary at login" },
     { kind = "check", key = "showNearby",   label = "Near your level" },
     { kind = "check", key = "shareQuests",  label = "Can share" },
+    { kind = "check", key = "dungeonsGroup", label = "Dungeons: group" },
+    { kind = "check", key = "dungeonsGuild", label = "Dungeons: guild" },
     { kind = "slider", key = "nearbyLevelRange", label = "Level range", min = 0, max = 10, prefix = "±" },
   },
 }

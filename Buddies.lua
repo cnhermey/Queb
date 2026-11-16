@@ -124,7 +124,11 @@ local function ClassAtlas(classFile)
   if C_Texture.GetAtlasInfo(atlas) then return atlas end
 end
 
+local DungeonHeaderTooltip, DungeonQuestTooltip -- defined below
+
 local function RowTooltip(row)
+  if row.kind == "dheader" then return DungeonHeaderTooltip(row) end
+  if row.kind == "dquest" then return DungeonQuestTooltip(row) end
   local b = row.buddy
   if not b then return end
   local c = UI.ClassColor(b.class)
@@ -177,6 +181,288 @@ local function RowTooltip(row)
     end
   end
   GameTooltip:Show()
+end
+
+---------------------------------------------------------------------------
+-- Dungeons section (v0.14.0): one collapsible block per dungeon, the dungeon
+-- name as its title. Header row: +/- , name, level range, then one class
+-- circle per person checked (the column key). Quest rows: one status icon
+-- per person in the same columns. Data and status rules: Dungeons.lua.
+---------------------------------------------------------------------------
+local DG = ns.Dungeons
+local CELL = 16
+
+local STATUS_COLOR = {
+  L = "WHITE", R = "GREEN", D = "GREEN", A = "GOLD",
+}
+
+local function StatusText(code)
+  local t = DG.TEXT[code] or DG.TEXT["?"]
+  return UI.Wrap(UI[STATUS_COLOR[code] or "GRAY"], t)
+end
+
+local function HasAtlas(name)
+  return C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(name) ~= nil
+end
+
+local function SetAvailable(tex)
+  if HasAtlas("QuestNormal") then
+    tex:SetAtlas("QuestNormal")
+  else
+    tex:SetTexture("Interface\\GossipFrame\\AvailableQuestIcon")
+    tex:SetTexCoord(0, 1, 0, 1)
+  end
+end
+
+local function HasQueb(p)
+  return p.isMe or (p.peer and p.peer.hasState) or false
+end
+
+local function MakeCell(row)
+  local c = {}
+  c.shadow = row:CreateTexture(nil, "ARTWORK", nil, 1)
+  c.shadow:SetTexture(UI.CIRCLE)
+  c.shadow:SetVertexColor(0, 0, 0, 0.85)
+  c.shadow:SetSize(12, 12)
+  c.tex = row:CreateTexture(nil, "ARTWORK", nil, 2)
+  c.tex:SetPoint("CENTER", c.shadow, "CENTER")
+  c.ring = row:CreateTexture(nil, "ARTWORK", nil, 4)
+  c.ring:SetTexture(UI.RING)
+  c.ring:SetVertexColor(UI.GOLD.r, UI.GOLD.g, UI.GOLD.b, 1)
+  c.ring:SetSize(14, 14)
+  c.ring:SetPoint("CENTER", c.shadow, "CENTER")
+  c.txt = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+  c.txt:SetPoint("CENTER", c.shadow, "CENTER")
+  return c
+end
+
+local function HideCell(c)
+  c.shadow:Hide(); c.tex:Hide(); c.ring:Hide(); c.txt:Hide()
+end
+
+local function ResetTex(tex, size)
+  tex:SetTexCoord(0, 1, 0, 1)
+  tex:SetDesaturated(false)
+  tex:SetVertexColor(1, 1, 1, 1)
+  tex:SetAlpha(1)
+  tex:SetSize(size, size)
+  tex:Show()
+end
+
+-- One cell: the person's status icon, or (code == nil) their class circle.
+local function SetCell(c, code, p)
+  HideCell(c)
+  if code == nil or code == "L" or code == "R" then
+    local col = UI.ClassColor(p.class)
+    ResetTex(c.tex, 10)
+    c.tex:SetTexture(UI.CIRCLE)
+    c.tex:SetVertexColor(col.r, col.g, col.b, HasQueb(p) and 1 or 0.45)
+    c.shadow:Show()
+    c.ring:SetShown(code == "R")
+  elseif code == "D" then
+    ResetTex(c.tex, 14)
+    c.tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+  elseif code == "A" or code == "P" or code == "V" then
+    ResetTex(c.tex, 14)
+    SetAvailable(c.tex)
+    if code ~= "A" then
+      c.tex:SetDesaturated(true)
+      c.tex:SetAlpha(0.7)
+    end
+  elseif code == "S" then
+    ResetTex(c.tex, 14)
+    c.tex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Waiting")
+    c.tex:SetAlpha(0.8)
+  elseif code == "X" then
+    c.txt:SetText("–")
+    c.txt:Show()
+  else
+    c.txt:SetText("?")
+    c.txt:Show()
+  end
+end
+
+local function InitDungeonParts(row)
+  if row.dg then return end
+  local g = { cells = {} }
+  row.dg = g
+  g.expand = row:CreateTexture(nil, "ARTWORK")
+  g.expand:SetSize(14, 14)
+  g.expand:SetPoint("LEFT", row, "LEFT", 4, 0)
+  g.title = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  g.title:SetJustifyH("LEFT")
+  g.title:SetWordWrap(false)
+  g.summary = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  g.summary:SetJustifyH("RIGHT")
+end
+
+local function HideDungeonParts(row)
+  local g = row.dg
+  if not g then return end
+  g.expand:Hide(); g.title:Hide(); g.summary:Hide()
+  for _, c in ipairs(g.cells) do HideCell(c) end
+end
+
+-- Cells right-aligned, first person leftmost; title + summary left of them.
+local function LayoutDungeonRow(row, n, indent, font)
+  local g = row.dg
+  for i = 1, n do
+    local c = g.cells[i] or MakeCell(row)
+    g.cells[i] = c
+    c.shadow:ClearAllPoints()
+    c.shadow:SetPoint("CENTER", row, "RIGHT", -(4 + CELL / 2) - (n - i) * CELL, 0)
+  end
+  for i = n + 1, #g.cells do HideCell(g.cells[i]) end
+  local cellsW = n * CELL + 8
+  g.summary:ClearAllPoints()
+  g.summary:SetPoint("RIGHT", row, "RIGHT", -cellsW, 0)
+  g.title:ClearAllPoints()
+  g.title:SetPoint("LEFT", row, "LEFT", indent, 0)
+  g.title:SetPoint("RIGHT", g.summary, "LEFT", -6, 0)
+  g.title:SetFontObject(font)
+  g.title:Show()
+end
+
+local function Counts(block, pIndex)
+  local n = {}
+  for qi = 1, #block.quests do
+    local code = block.codes[qi][pIndex]
+    n[code] = (n[code] or 0) + 1
+  end
+  return n
+end
+
+local function PersonSummary(block, pIndex)
+  local n = Counts(block, pIndex)
+  local parts = {}
+  if n.L or n.R then parts[#parts + 1] = ((n.L or 0) + (n.R or 0)) .. " on" end
+  if n.D then parts[#parts + 1] = n.D .. " done" end
+  if n.A then parts[#parts + 1] = UI.Wrap(UI.GOLD, n.A .. " to pick up") end
+  if n.P or n.V then parts[#parts + 1] = ((n.P or 0) + (n.V or 0)) .. " not yet" end
+  if #parts == 0 then
+    -- nothing known: the one reason (e.g. "no Queb", "syncing")
+    local code = block.codes[1] and block.codes[1][pIndex]
+    return StatusText(code or "?")
+  end
+  return table.concat(parts, " · ")
+end
+
+local function RenderDungeonHeader(row, item)
+  InitDungeonParts(row)
+  local b, g = item.block, row.dg
+  local d = b.dungeon
+  LayoutDungeonRow(row, #b.people, 22, "GameFontNormal")
+  g.expand:SetTexture(item.open and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
+  g.expand:Show()
+  local lv = d.minL and ((d.maxL and d.maxL ~= d.minL) and ("Lv " .. d.minL .. "-" .. d.maxL) or ("Lv " .. d.minL)) or nil
+  g.title:SetText(d.name .. (lv and ("  " .. UI.Wrap(UI.GRAY, lv)) or ""))
+  local avail = 0
+  for qi = 1, #b.quests do
+    for pi = 1, #b.people do
+      if b.codes[qi][pi] == "A" then avail = avail + 1 end
+    end
+  end
+  g.summary:SetText(avail > 0 and (UI:ShareIcon(12) .. avail) or "")
+  g.summary:Show()
+  for i, p in ipairs(b.people) do SetCell(g.cells[i], nil, p) end
+end
+
+local function RenderDungeonQuest(row, item)
+  InitDungeonParts(row)
+  local b, g, qi = item.block, row.dg, item.qi
+  local q = b.quests[qi]
+  LayoutDungeonRow(row, #b.people, 24, "GameFontHighlightSmall")
+  g.expand:Hide()
+  local lvl = q.level and UI.Wrap(UI.GRAY, "[" .. q.level .. "] ") or ""
+  g.title:SetText(lvl .. DG:Title(q))
+  g.summary:SetText(DG:CanShareNow(q.id) and UI.Wrap(UI.GREEN, "share") or "")
+  g.summary:Show()
+  for i, p in ipairs(b.people) do SetCell(g.cells[i], b.codes[qi][i], p) end
+end
+
+DungeonHeaderTooltip = function(row)
+  local b = row.item.block
+  local d = b.dungeon
+  GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+  GameTooltip:SetText(d.name, UI.GOLD.r, UI.GOLD.g, UI.GOLD.b)
+  if d.minL then
+    GameTooltip:AddLine((d.maxL and d.maxL ~= d.minL) and ("Lv " .. d.minL .. "-" .. d.maxL) or ("Lv " .. d.minL),
+      UI.WHITE.r, UI.WHITE.g, UI.WHITE.b)
+  end
+  GameTooltip:AddLine(" ")
+  for i, p in ipairs(b.people) do
+    local name = p.isMe and "You" or p.name
+    GameTooltip:AddDoubleLine(UI:CircleIcon(p.class, 10) .. " " .. UI.ColorName(name, p.class), PersonSummary(b, i))
+  end
+  GameTooltip:AddLine(row.item.open and "<Click: close>" or "<Click: open>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
+  GameTooltip:AddLine("<Shift-click: names to chat>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
+  GameTooltip:Show()
+end
+
+DungeonQuestTooltip = function(row)
+  local b, qi = row.item.block, row.item.qi
+  local q = b.quests[qi]
+  GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+  GameTooltip:SetText(DG:Title(q), UI.GOLD.r, UI.GOLD.g, UI.GOLD.b)
+  local lv = {}
+  if q.level then lv[#lv + 1] = "Lv " .. q.level end
+  if q.req then lv[#lv + 1] = "needs Lv " .. q.req end
+  if #lv > 0 then GameTooltip:AddLine(table.concat(lv, " · "), UI.WHITE.r, UI.WHITE.g, UI.WHITE.b) end
+  if q.pickup then GameTooltip:AddLine(q.pickup, UI.GRAY.r, UI.GRAY.g, UI.GRAY.b, true) end
+  local pre = DG:PrereqNames(q.id)
+  if pre then GameTooltip:AddLine("Pre-quests: " .. table.concat(pre, ", "), UI.GRAY.r, UI.GRAY.g, UI.GRAY.b, true) end
+  GameTooltip:AddLine(" ")
+  for i, p in ipairs(b.people) do
+    local name = p.isMe and "You" or p.name
+    GameTooltip:AddDoubleLine(UI:CircleIcon(p.class, 10) .. " " .. UI.ColorName(name, p.class), StatusText(b.codes[qi][i]))
+  end
+  if DG:CanShareNow(q.id) then
+    GameTooltip:AddLine("<Click: share>", UI.GREEN.r, UI.GREEN.g, UI.GREEN.b)
+  end
+  GameTooltip:Show()
+end
+
+-- Shift-click a dungeon: "Deadmines: Quest A, Quest B" into the open chat
+-- box (Blizzard's shift-click-to-link behavior; never sent by Queb).
+local function InsertIntoChat(text)
+  local fns = {}
+  if ChatFrameUtil and ChatFrameUtil.InsertLink then fns[#fns + 1] = function(t) return ChatFrameUtil.InsertLink(t) end end
+  if ChatEdit_InsertLink then fns[#fns + 1] = ChatEdit_InsertLink end
+  for _, fn in ipairs(fns) do
+    local ok, done = pcall(fn, text)
+    if ok and done then return true end
+  end
+  return false
+end
+
+local function DungeonChatText(b)
+  local names = {}
+  for qi, q in ipairs(b.quests) do
+    for pi, p in ipairs(b.people) do
+      if not p.isMe and b.codes[qi][pi] == "A" then names[#names + 1] = DG:Title(q) break end
+    end
+  end
+  if #names == 0 then
+    for _, q in ipairs(b.quests) do names[#names + 1] = DG:Title(q) end
+  end
+  return b.dungeon.name .. ": " .. table.concat(names, ", ")
+end
+
+local function OnRowClick(row)
+  local item = row.item
+  if not item then return end
+  if item.kind == "dheader" then
+    if IsShiftKeyDown() then
+      if not InsertIntoChat(DungeonChatText(item.block)) then ns.Print("Open chat first") end
+      return
+    end
+    PlaySoundSafe(item.open and "IG_MAINMENU_OPTION_CHECKBOX_OFF" or "IG_MAINMENU_OPTION_CHECKBOX_ON")
+    DG:SetOpen(item.block.dungeon.key, not item.open)
+    B:Update()
+  elseif item.kind == "dquest" then
+    local q = item.block.quests[item.qi]
+    if DG:CanShareNow(q.id) then DG:Share(q.id) end
+  end
 end
 
 -- Builds a row's parts once (rows are recycled by the ScrollBox). Rows are
@@ -234,27 +520,46 @@ local function InitRow(row)
 
   row:SetScript("OnEnter", RowTooltip)
   row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  row:SetScript("OnClick", OnRowClick)
 end
 
-local function ShowMemberParts(row, shown)
+-- header = gold section title; member = Quebmate row; none = dungeon rows.
+local function ShowMemberParts(row, shown, header)
+  if header == nil then header = not shown end
   if not shown then ns.Roles:HideRowIcons(row) end
   row.icon:SetShown(shown)
   row.name:SetShown(shown)
   row.count:SetShown(shown)
   row.info:SetShown(shown)
   row.invite:SetShown(shown)
-  row.header:SetShown(not shown)
-  row.divider:SetShown(not shown)
+  row.header:SetShown(header)
+  row.divider:SetShown(header)
 end
 
 local function RenderRow(row, item)
   InitRow(row)
   row.kind = item.kind
+  row.item = item
   row.buddy = item.data
+  HideDungeonParts(row)
   if item.kind == "header" then
     ShowMemberParts(row, false)
     row.header:SetText(item.text)
     row:EnableMouse(false)
+    return
+  end
+  if item.kind == "dnote" then
+    ShowMemberParts(row, false, false)
+    InitDungeonParts(row)
+    LayoutDungeonRow(row, 0, 8, "GameFontDisable")
+    row.dg.title:SetText(item.text)
+    row:EnableMouse(false)
+    return
+  end
+  if item.kind == "dheader" or item.kind == "dquest" then
+    ShowMemberParts(row, false, false)
+    row:EnableMouse(true)
+    if item.kind == "dheader" then RenderDungeonHeader(row, item) else RenderDungeonQuest(row, item) end
     return
   end
   row:EnableMouse(true)
@@ -297,7 +602,31 @@ local function BuildItems()
     items[#items + 1] = { kind = "header", text = "Near your level (±" .. (ns.db.nearbyLevelRange or 3) .. ")" }
     for _, n in ipairs(nearby) do items[#items + 1] = { kind = "nearby", data = n } end
   end
-  return items
+  -- Dungeons section: one collapsible block per dungeon
+  local open = {}
+  if ns.db.dungeonsGroup or ns.db.dungeonsGuild then
+    local blocks = DG:Blocks()
+    if blocks == nil then
+      items[#items + 1] = { kind = "header", text = "Dungeons" }
+      items[#items + 1] = { kind = "dnote", text = DG:HasSource() and "loading" or "needs DungeonJournal or Questie" }
+    elseif #blocks > 0 then
+      items[#items + 1] = { kind = "header", text = "Dungeons" }
+      for _, b in ipairs(blocks) do
+        b.codes = {}
+        for qi, q in ipairs(b.quests) do
+          b.codes[qi] = {}
+          for pi, p in ipairs(b.people) do b.codes[qi][pi] = DG:Status(p, q.id) end
+        end
+        local isOpen = DG:IsOpen(b.dungeon.key)
+        items[#items + 1] = { kind = "dheader", block = b, open = isOpen }
+        if isOpen then
+          open[#open + 1] = b
+          for qi in ipairs(b.quests) do items[#items + 1] = { kind = "dquest", block = b, qi = qi } end
+        end
+      end
+    end
+  end
+  return items, open
 end
 
 local function SetTitle(f, text)
@@ -579,7 +908,9 @@ end
 
 function B:UpdatePanel(panel)
   if not panel:IsVisible() or panel.selected ~= "buddies" then return end
-  local items = BuildItems()
+  local items, open = BuildItems()
+  -- ask the people of open dungeon blocks for what only they can know
+  for _, b in ipairs(open) do DG:Ask(b) end
   if panel.box then
     local retain = ScrollBoxConstants and ScrollBoxConstants.RetainScrollPosition
     panel.box:SetDataProvider(CreateDataProvider(items), retain)
@@ -698,5 +1029,6 @@ local function Refresh()
   ns.Coalesce("buddies_update", 0.2, function() B:Update() end)
 end
 ns.Listen("PEERS_CHANGED", Refresh)
+ns.Listen("DUNGEONS_READY", Refresh)
 ns.Listen("LOCAL_QUESTS_CHANGED", Refresh)
 ns.On("GROUP_ROSTER_UPDATE", Refresh)

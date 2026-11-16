@@ -83,6 +83,16 @@ local function Probe()
   end
   P("  OpenMap API: " .. (type(OpenMapAPI) == "table" and ("v" .. tostring(OpenMapAPI.major) .. "." .. tostring(OpenMapAPI.version)) or "missing")
     .. ", menu toggle: " .. tostring(ns.OpenMapUI and ns.OpenMapUI.menuRegistered == true))
+  do
+    local Dg, J = ns.Dungeons, ns.DungeonJournalUI
+    local list = Dg.list
+    local nq = 0
+    for _, d in ipairs(list or {}) do nq = nq + #d.quests end
+    P("  Dungeons: " .. (Dg.source or (Dg.building and "building" or (Dg:HasSource() and "not built" or "no source")))
+      .. ", " .. (list and #list or 0) .. " dungeons, " .. nq .. " quests · asked " .. Dg.stats.asked
+      .. ", answered " .. Dg.stats.answered .. ", heard " .. Dg.stats.heard
+      .. " · DungeonJournal hook " .. tostring(J.hooked) .. ", rows " .. J.stats.rows .. ", with circles " .. J.stats.placed)
+  end
   P("  Unit tooltips: " .. tostring(ns.UnitUI and ns.UnitUI.hook) .. ", party sync " .. tostring(ns.db.shareParty))
   P("  Hooks installed: " .. (#ns.Tracker.hooks > 0 and table.concat(ns.Tracker.hooks, ", ") or "none"))
   local B = ns.Buddies
